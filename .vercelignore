@@ -1,0 +1,10 @@
+.venv
+frontend/node_modules
+frontend/.next
+tools
+data
+**/node_modules
+**/.next
+celerybeat-schedule*
+*.db
+.env
