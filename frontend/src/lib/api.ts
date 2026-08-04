@@ -89,10 +89,21 @@ export const luxApi = {
       phase: string;
       cycle: number;
       thread_alive: boolean;
+      verify_thread_alive?: boolean;
+      verify_running?: boolean;
+      verify_phase?: string;
+      verify_cycle?: number;
       verify_wa: boolean;
+      parallel?: boolean;
       whatsapp?: number | null;
       wa_auth?: boolean;
-      last_result?: { whatsapp_gained?: number; whatsapp_after?: number } | null;
+      last_result?: { whatsapp_gained?: number; whatsapp_after?: number; wa_verify?: boolean } | null;
+      last_verify_result?: {
+        ok?: boolean;
+        reachable?: number;
+        dead?: number;
+        checked?: number;
+      } | null;
       last_error?: string | null;
     }>("/autopilot"),
   setAutopilot: (enabled: boolean, verify_wa = true) =>

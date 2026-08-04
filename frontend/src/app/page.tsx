@@ -40,6 +40,8 @@ export default function Home() {
   const [autopilot, setAutopilot] = useState(false);
   const [autoPhase, setAutoPhase] = useState("idle");
   const [autoCycle, setAutoCycle] = useState(0);
+  const [verifyPhase, setVerifyPhase] = useState("idle");
+  const [verifyCycle, setVerifyCycle] = useState(0);
   const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
@@ -57,6 +59,8 @@ export default function Home() {
         setAutopilot(!!ap.enabled);
         setAutoPhase(ap.phase || "idle");
         setAutoCycle(ap.cycle || 0);
+        setVerifyPhase(ap.verify_phase || "idle");
+        setVerifyCycle(ap.verify_cycle || 0);
         if (typeof ap.wa_auth === "boolean") setWaAuth(ap.wa_auth);
       }
       setIdx((i) => (q.length ? Math.min(i, q.length - 1) : 0));
@@ -171,19 +175,27 @@ export default function Home() {
   const waPerH = stats?.wa_per_hour ?? 0;
   const eta = stats?.eta_hours_to_10k_wa;
   const waNew = stats?.wa_new_24h ?? null;
-  const jobActive = busy || verifying || (autopilot && autoPhase === "harvest");
+  const jobActive =
+    busy || verifying || (autopilot && (autoPhase === "harvest" || verifyPhase === "verifying"));
   const loaderLabel = verifying
     ? "Vérification WhatsApp"
-    : autopilot && autoPhase === "harvest"
-      ? `Autopilote cycle ${autoCycle}`
-      : busy
-        ? status.replace(/…$/, "") || "Recherche"
-        : running
-          ? "Collecte en pause"
-          : autopilot
-            ? `Autopilote · ${autoPhase}`
-            : "Prêt";
-  const loaderVariant = verifying ? "Orbit" : busy || (autopilot && autoPhase === "harvest") ? "Drive" : "Dots";
+    : autopilot && verifyPhase === "verifying" && autoPhase !== "harvest"
+      ? `WA verify #${verifyCycle}`
+      : autopilot && autoPhase === "harvest"
+        ? `Harvest #${autoCycle}${verifyPhase === "verifying" ? " + WA" : ""}`
+        : busy
+          ? status.replace(/…$/, "") || "Recherche"
+          : running
+            ? "Collecte en pause"
+            : autopilot
+              ? `Autopilote · ${autoPhase}/${verifyPhase}`
+              : "Prêt";
+  const loaderVariant =
+    verifying || verifyPhase === "verifying"
+      ? "Orbit"
+      : busy || (autopilot && autoPhase === "harvest")
+        ? "Drive"
+        : "Dots";
 
   const connectApi = useCallback(async () => {
     setConnecting(true);
@@ -282,7 +294,11 @@ export default function Home() {
           />
           <LiveDot
             ok={autopilot ? true : apiOk === false ? false : null}
-            label={autopilot ? `Autopilote · ${autoPhase}` : "Autopilote off"}
+            label={
+              autopilot
+                ? `Auto · ${autoPhase} + WA ${verifyPhase}`
+                : "Autopilote off"
+            }
           />
           {apiOk === false && (
             <button
