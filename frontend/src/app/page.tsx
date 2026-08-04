@@ -20,6 +20,7 @@ import {
 import { Contact, Stats, luxApi } from "@/lib/api";
 import { BentoCell, BentoGrid } from "@/components/ui/bento-grid";
 import LoadingState from "@/components/ui/loading-state";
+import Velaris from "@/components/ui/velaris";
 import { AnimatedNumber } from "@/components/wareach/animated-number";
 import { ProgressTrack } from "@/components/wareach/progress-track";
 import { LiveDot } from "@/components/wareach/live-dot";
@@ -239,27 +240,36 @@ export default function Home() {
   }, [autopilot, load]);
 
   return (
-    <main className="relative mx-auto min-h-screen max-w-6xl px-5 pb-20 pt-8 md:px-8 md:pt-10">
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -left-24 top-24 h-64 w-64 rounded-full bg-[var(--accent)]/10 blur-3xl"
-        animate={reduce ? undefined : { opacity: [0.35, 0.7, 0.35], y: [0, 18, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-      />
-
+    <Velaris
+      height="100%"
+      className="min-h-screen"
+      bg="#071016"
+      colors={["#5eead4", "#0d7377", "#134e4a", "#0c1419"]}
+      speed={reduce ? 0 : 1.2}
+      grain={0.2}
+    >
+    <main
+      className="relative mx-auto min-h-screen max-w-6xl px-5 pb-20 pt-8 text-white md:px-8 md:pt-10"
+      style={
+        {
+          ["--ink" as string]: "#f3faf9",
+          ["--muted" as string]: "rgba(243,250,249,0.62)",
+          ["--line" as string]: "rgba(255,255,255,0.14)",
+          ["--border" as string]: "rgba(255,255,255,0.12)",
+          ["--surface" as string]: "rgba(7,16,22,0.55)",
+          ["--accent-soft" as string]: "rgba(13,115,119,0.28)",
+          ["--foreground" as string]: "#f3faf9",
+          ["--muted-foreground" as string]: "rgba(243,250,249,0.55)",
+        } as CSSProperties
+      }
+    >
       <AnimatePresence>
         {(jobActive || running || autopilot) && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-[var(--accent)]/25 bg-[var(--ink)] px-4 py-3 text-[var(--surface)] shadow-panel"
-            style={
-              {
-                ["--foreground" as string]: "#f7fafc",
-                ["--muted-foreground" as string]: "rgba(247,250,252,0.55)",
-              } as CSSProperties
-            }
+            className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-black/40 px-4 py-3 text-white shadow-panel backdrop-blur-md"
           >
             <LoadingState
               key={`${loaderLabel}-${jobActive}-${autoCycle}`}
@@ -278,15 +288,15 @@ export default function Home() {
 
       <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-teal-300/90">
             Brand protection OSINT
           </p>
-          <h1 className="font-display text-4xl font-bold tracking-tight md:text-5xl">WAREACH</h1>
-          <p className="mt-2 max-w-md text-sm text-[var(--muted)]">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-white md:text-5xl">WAREACH</h1>
+          <p className="mt-2 max-w-md text-sm text-white/65">
             Collecte Chine · WhatsApp & WeChat · vérification live pour maisons LVMH / Richemont.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-2 text-white/70">
           <LiveDot ok={apiOk} label={apiOk ? "API live" : apiOk === false ? "API down" : "API…"} />
           <LiveDot
             ok={waAuth}
@@ -384,7 +394,7 @@ export default function Home() {
           </p>
         </BentoCell>
 
-        <BentoCell span="md:col-span-3" className="!bg-[var(--ink)] text-[var(--surface)]">
+        <BentoCell span="md:col-span-3" className="!border-white/15 !bg-black/50 text-white backdrop-blur-md">
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -499,7 +509,7 @@ export default function Home() {
         </BentoCell>
       </BentoGrid>
 
-      <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/85 p-5 shadow-panel backdrop-blur-sm md:p-7">
+      <section className="rounded-2xl border border-white/12 bg-black/35 p-5 shadow-panel backdrop-blur-md md:p-7">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl font-semibold tracking-tight">File de vérification</h2>
@@ -645,5 +655,6 @@ export default function Home() {
         </ul>
       </section>
     </main>
+    </Velaris>
   );
 }

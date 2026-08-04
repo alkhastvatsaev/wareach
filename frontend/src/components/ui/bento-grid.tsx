@@ -53,8 +53,8 @@ export function BentoCell({
         },
       }}
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-sm",
-        "shadow-[0_1px_0_rgba(12,20,25,0.04),0_12px_32px_-18px_rgba(12,20,25,0.18)]",
+        "relative overflow-hidden rounded-2xl border border-white/12 bg-black/35 backdrop-blur-md",
+        "shadow-[0_12px_40px_-20px_rgba(0,0,0,0.55)]",
         span,
         className
       )}
