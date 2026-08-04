@@ -1,0 +1,18 @@
+{
+  "name": "wareach-whatsapp-check",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vérifie si des numéros WAREACH sont sur WhatsApp (Baileys, sans envoi de message).",
+  "scripts": {
+    "start": "node check_batch.js",
+    "check": "node check_batch.js",
+    "login": "node check_batch.js --login-only"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.21",
+    "pino": "^10.3.1",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

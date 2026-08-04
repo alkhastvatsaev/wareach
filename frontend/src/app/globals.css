@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #0c1419;
+  --muted: #5b6b76;
+  --line: #d5dee6;
+  --border: rgba(12, 20, 25, 0.08);
+  --accent: #0d7377;
+  --accent-soft: #e6f4f4;
+  --surface: #f7fafc;
+  --glow: rgba(13, 115, 119, 0.14);
+  --warn: #9a3412;
+  --bg0: #eef3f6;
+  --bg1: #dce8ec;
+  /* shadcn-compatible aliases for shared UI components */
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --muted-foreground: var(--muted);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(920px 520px at 12% -10%, rgba(13, 115, 119, 0.16), transparent 55%),
+    radial-gradient(780px 480px at 92% 8%, rgba(180, 83, 9, 0.08), transparent 50%),
+    linear-gradient(165deg, var(--bg0) 0%, var(--bg1) 100%);
+  background-attachment: fixed;
+  font-family: var(--font-sans), "DM Sans", system-ui, sans-serif;
+  min-height: 100vh;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: rgba(13, 115, 119, 0.2);
+}
+
+.font-display {
+  font-family: var(--font-display), "Syne", system-ui, sans-serif;
+}
+
+.font-mono,
+.mono {
+  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes pixel-on {
+  0%,
+  100% {
+    opacity: 0.12;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer-text {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

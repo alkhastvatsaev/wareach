@@ -1,0 +1,16 @@
+{
+  "project": "WAREACH",
+  "decisions": [
+    {
+      "at": "2026-08-04",
+      "choice": "Folio data-intelligence layout + Aceternity/21st Bento Grid",
+      "refs": [
+        "https://21st.dev/community/templates/folio-open-source-data-intelligence-landing-template",
+        "https://21st.dev/r/manuarora700/bento-grid",
+        "https://21st.dev/r/avanishverma4/bento-grid-01"
+      ],
+      "system": "ui-ux-pro-max: Sales Intelligence Dashboard / Real-Time Ops",
+      "notes": "Cool graphite + teal accent (not cream/purple). Syne + DM Sans + JetBrains Mono. Framer Motion stagger + progress + live pulse."
+    }
+  ]
+}
