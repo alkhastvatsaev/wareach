@@ -48,7 +48,7 @@ def _get_row(db: Session) -> SystemMetric:
             value={
                 "enabled": True,
                 "verify_wa": True,
-                "sleep_sec": 28,
+                "sleep_sec": 12,
                 "wa_verify_every_n": 1,
                 "wa_verify_limit": 25,
                 "wa_verify_delay_ms": 3500,
@@ -70,7 +70,7 @@ def get_config(db: Session | None = None) -> dict[str, Any]:
         val = dict(row.value or {})
         val.setdefault("enabled", True)
         val.setdefault("verify_wa", True)
-        val.setdefault("sleep_sec", 28)
+        val.setdefault("sleep_sec", 12)
         val.setdefault("wa_verify_every_n", 1)
         val.setdefault("wa_verify_limit", 25)
         val.setdefault("wa_verify_delay_ms", 3500)
@@ -108,7 +108,7 @@ def status_snapshot() -> dict[str, Any]:
         **live,
         "enabled": bool(cfg.get("enabled", True)),
         "verify_wa": bool(cfg.get("verify_wa", True)),
-        "sleep_sec": int(cfg.get("sleep_sec", 28)),
+        "sleep_sec": int(cfg.get("sleep_sec", 12)),
         "wa_verify_every_n": int(cfg.get("wa_verify_every_n", 1)),
         "wa_verify_limit": int(cfg.get("wa_verify_limit", 25)),
         "wa_verify_sleep_sec": int(cfg.get("wa_verify_sleep_sec", 20)),
@@ -120,11 +120,12 @@ def status_snapshot() -> dict[str, Any]:
 
 
 _expand_dry_streak = 0
+_offline_dry_streak = 0
 
 
-def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
-    """Harvest cycle only. WA verify runs on its own parallel thread."""
-    global _expand_dry_streak
+def run_cycle(db: Session, *, do_verify: bool = False, boost: bool = True) -> dict[str, Any]:
+    """Harvest cycle. boost=True = peak-hour path (large blitz + raw Yupoo)."""
+    global _expand_dry_streak, _offline_dry_streak
     from app.services.alerts import evaluate_alerts
     from app.services.drain import drain_wa_pending
     from app.services.offline_harvest import offline_harvest_all
@@ -139,8 +140,6 @@ def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
 
     before = whatsapp_count(db)
     reclaim_stale_url_jobs()
-
-    # Unblock queue: Bing redirect junk was starving Yupoo crawl (~5.7k pending)
     purge = purge_junk_urls(db)
 
     yupoo_pending = (
@@ -157,34 +156,58 @@ def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
         "whatsapp_before": before,
         "purge": purge,
         "yupoo_pending": yupoo_pending,
-        "offline": offline_harvest_all(db, limit=4000),
+        "boost": boost,
     }
 
-    # Expand plateaus (urls_added=0) burn cycle time — skip after 2 dry runs
+    if _offline_dry_streak < 1:
+        offline = offline_harvest_all(db, limit=2000 if boost else 4000)
+        result["offline"] = offline
+        gained = int((offline or {}).get("whatsapp_gained") or 0)
+        _offline_dry_streak = 0 if gained > 0 else _offline_dry_streak + 1
+    else:
+        result["offline"] = {"skipped": "dry_streak", "streak": _offline_dry_streak}
+        _offline_dry_streak = (_offline_dry_streak + 1) % 6
+
     if _expand_dry_streak < 2 or yupoo_pending < 80:
-        expand = run_yupoo_expand(db, seed_limit=30, prefer_contact=True)
+        expand = run_yupoo_expand(
+            db, seed_limit=40 if boost else 30, prefer_contact=True, randomize=True
+        )
         result["expand"] = expand
-        added = int((expand or {}).get("urls_added") or (expand or {}).get("added") or 0)
+        added = int((expand or {}).get("urls_added") or 0)
         _expand_dry_streak = 0 if added > 0 else _expand_dry_streak + 1
     else:
         result["expand"] = {"skipped": "dry_streak", "streak": _expand_dry_streak}
 
-    result["raw"] = run_yupoo_raw_crawl(db, limit=60, workers=6)
-    result["drain"] = drain_wa_pending(db, limit=80, fetch_pages=False)
-    result["blitz"] = run_whatsapp_blitz(db, query_limit=18, workers=4)
-    result["crawl"] = run_crawl_batch(db, limit=40)
+    result["raw"] = run_yupoo_raw_crawl(db, limit=120 if boost else 60, workers=8 if boost else 6)
+    # CRITICAL: fetch_pages=True — snippet-only drain was leaving WA on the page unread (+46 in one batch)
+    result["drain"] = drain_wa_pending(
+        db, limit=120 if boost else 80, fetch_pages=True if boost else False
+    )
 
-    # Refill when Yupoo queue is thin
-    if yupoo_pending < 200:
+    # Search-engine-free virgin inventory (critical when Bing/Exa/Baidu are blocked)
+    if boost:
+        from app.services.yupoo_phone_probe import run_yupoo_phone_probe
+
+        result["phone_probe"] = run_yupoo_phone_probe(db, limit=300, workers=14, mutate=True)
+
+    result["blitz"] = run_whatsapp_blitz(db, query_limit=40 if boost else 18, workers=8 if boost else 4)
+
+    blitz_gained = int((result["blitz"] or {}).get("whatsapp_gained") or 0)
+    blitz_signal = int((result["blitz"] or {}).get("hits_with_wa_signal") or 0)
+    if boost and blitz_gained < 5 and blitz_signal < 8:
+        result["blitz2"] = run_whatsapp_blitz(db, query_limit=35, workers=8)
+
+    result["crawl"] = run_crawl_batch(db, limit=50 if boost else 40)
+
+    if boost or yupoo_pending < 500:
         try:
-            result["discovery"] = run_discovery_batch(db, limit=12)
+            result["discovery"] = run_discovery_batch(db, limit=20 if boost else 12)
         except Exception as exc:
             result["discovery"] = {"error": str(exc)[:200]}
 
     result["reharvest"] = reharvest_pending_snippets(db, limit=800)
     result["dedup"] = dedup_whatsapp_variants(db)
 
-    # Optional inline verify kept for /autopilot/tick?verify=true
     if do_verify:
         from app.services.wa_verify import auth_ready, run_whatsapp_verify
 
@@ -203,6 +226,7 @@ def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
     result["whatsapp_after"] = after
     result["whatsapp_gained"] = max(0, after - before)
     return result
+
 
 def _harvest_loop() -> None:
     logger.info("Autopilot harvest thread started")
@@ -259,7 +283,7 @@ def _harvest_loop() -> None:
                 _state["running"] = False
             db.close()
 
-        sleep_sec = max(15, int(cfg.get("sleep_sec", 28)))
+        sleep_sec = max(8, int(cfg.get("sleep_sec", 12)))
         _stop.wait(sleep_sec)
 
     logger.info("Autopilot harvest thread stopped")

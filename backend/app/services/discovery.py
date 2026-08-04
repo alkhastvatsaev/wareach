@@ -7,6 +7,7 @@ import logging
 import re
 import subprocess
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import httpx
 
@@ -113,11 +114,14 @@ def search_exa(query: str, num_results: int | None = None) -> list[SearchHit]:
                 check=False,
             )
             out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-            if "429" in out or "rate" in out.lower():
-                mark_rate_limited("exa", 180)
-                time.sleep(2.5 * (attempt + 1))
+            if "429" in out or "rate limit" in out.lower() or "rate_limit" in out.lower():
+                # Free Exa MCP quota — cool long enough to prefer HTML/phone-probe paths
+                mark_rate_limited("exa", 300)
+                time.sleep(1.0 * (attempt + 1))
                 continue
             if proc.returncode != 0 and "Title:" not in out:
+                if "429" in out:
+                    mark_rate_limited("exa", 300)
                 logger.warning("exa search failed rc=%s: %s", proc.returncode, out[:400])
                 return []
             return _parse_exa_text(out)
@@ -264,7 +268,7 @@ def fetch_page_content(url: str) -> str:
 def duckduckgo_lite(query: str, max_results: int = 10) -> list[SearchHit]:
     hits: list[SearchHit] = []
     try:
-        with httpx.Client(timeout=30, follow_redirects=True) as client:
+        with httpx.Client(timeout=10, follow_redirects=True) as client:
             r = client.post(
                 "https://html.duckduckgo.com/html/",
                 data={"q": query},
@@ -278,9 +282,9 @@ def duckduckgo_lite(query: str, max_results: int = 10) -> list[SearchHit]:
                 href = a.get("href")
                 title = a.get_text(strip=True)
                 if href and href.startswith("http"):
-                    hits.append(SearchHit(url=href, title=title, source="ddg"))
+                    hits.append(SearchHit(url=unwrap_search_redirect(href), title=title, source="ddg"))
     except Exception:
-        logger.exception("ddg fallback failed")
+        logger.debug("ddg fallback failed", exc_info=True)
     return hits
 
 
@@ -308,7 +312,12 @@ def bing_lite(query: str, max_results: int = 10) -> list[SearchHit]:
             from bs4 import BeautifulSoup
 
             soup = BeautifulSoup(r.text, "lxml")
-            for li in soup.select("li.b_algo")[:max_results]:
+            algos = soup.select("li.b_algo")
+            if not algos and ("challenge" in r.text.lower() or "captcha" in r.text.lower() or "b_logo" in r.text):
+                mark_rate_limited("bing", 180)
+                logger.info("bing challenge/empty — cooling 3min")
+                return []
+            for li in algos[:max_results]:
                 a = li.select_one("h2 a")
                 if not a:
                     continue
@@ -365,6 +374,32 @@ def brave_lite(query: str, max_results: int = 8) -> list[SearchHit]:
     return hits
 
 
+def resolve_baidu_link(url: str, client: httpx.Client | None = None) -> str:
+    """Follow Baidu /link tracking URLs to the real destination."""
+    if not url or "baidu.com" not in url.lower():
+        return unwrap_search_redirect(url)
+    own = client is None
+    c = client or httpx.Client(timeout=12, follow_redirects=True)
+    try:
+        r = c.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                "Accept-Language": "zh-CN,zh;q=0.9",
+            },
+        )
+        final = str(r.url)
+        host = (urlparse(final).netloc or "").lower()
+        if host and "baidu.com" not in host and "wappass" not in host:
+            return final
+    except Exception:
+        logger.debug("baidu link resolve failed %s", url[:100], exc_info=True)
+    finally:
+        if own:
+            c.close()
+    return unwrap_search_redirect(url)
+
+
 def baidu_lite(query: str, max_results: int = 8) -> list[SearchHit]:
     """Baidu HTML — China-first results (Yupoo / 水贝 often rank here)."""
     from app.services.engine_state import is_available, mark_rate_limited
@@ -396,49 +431,92 @@ def baidu_lite(query: str, max_results: int = 8) -> list[SearchHit]:
             from bs4 import BeautifulSoup
 
             soup = BeautifulSoup(r.text, "lxml")
+            raw_hits: list[SearchHit] = []
             for a in soup.select("h3 a")[:max_results]:
                 href = a.get("href") or ""
                 title = a.get_text(strip=True)
                 if not title or len(title) < 4:
                     continue
                 if href.startswith("http"):
-                    hits.append(SearchHit(url=href, title=title, source="baidu"))
+                    raw_hits.append(SearchHit(url=href, title=title, source="baidu"))
                 elif href.startswith("/link") or "baidu.com/link" in href:
-                    hits.append(
+                    raw_hits.append(
                         SearchHit(
                             url=f"https://www.baidu.com{href}" if href.startswith("/") else href,
                             title=title,
                             source="baidu",
                         )
                     )
+            for hit in raw_hits:
+                url = resolve_baidu_link(hit.url, client)
+                host = (urlparse(url).netloc or "").lower()
+                if "baidu.com" in host or "wappass" in host:
+                    continue
+                hits.append(SearchHit(url=url, title=hit.title, snippet=hit.snippet, source="baidu"))
     except Exception:
         logger.debug("baidu search failed", exc_info=True)
     return hits
 
 
 def discover(query: str) -> list[SearchHit]:
-    """Multi-engine with cooldown: Bing/Baidu first when Exa is hot."""
+    """Multi-engine discovery — China/Yupoo/+86 queries go Bing/Baidu first (peak path)."""
     from app.services.engine_state import is_available
 
     hits: list[SearchHit] = []
-    # Prefer free HTML engines when Exa is cooling — faster + fewer 429 loops
-    if is_available("exa"):
-        hits.extend(search_exa(query))
-    if len(hits) < 6:
-        hits.extend(bing_lite(query))
-    if len(hits) < 6:
-        hits.extend(baidu_lite(query))
-    if len(hits) < 5:
-        hits.extend(search_firecrawl(query))
-    if len(hits) < 4:
-        hits.extend(duckduckgo_lite(query))
-    if len(hits) < 3:
-        hits.extend(brave_lite(query))
+    q = (query or "").lower()
+    china_first = any(
+        x in q
+        for x in (
+            "yupoo",
+            "+86",
+            "whatsapp",
+            "水贝",
+            "高仿",
+            "微信",
+            "厂家",
+            "复刻",
+            "1:1",
+            "白云",
+            "广州",
+        )
+    )
+
+    if china_first:
+        # Historical peak: HTML engines returned WA-bearing Yupoo titles fast
+        hits.extend(bing_lite(query, max_results=12))
+        if len(hits) < 8:
+            hits.extend(baidu_lite(query, max_results=10))
+        if len(hits) < 6 and is_available("exa"):
+            hits.extend(search_exa(query))
+        if len(hits) < 5:
+            hits.extend(duckduckgo_lite(query))
+        if len(hits) < 4:
+            hits.extend(brave_lite(query, max_results=8))
+    else:
+        if is_available("exa"):
+            hits.extend(search_exa(query))
+        if len(hits) < 6:
+            hits.extend(bing_lite(query))
+        if len(hits) < 6:
+            hits.extend(baidu_lite(query))
+        if len(hits) < 5:
+            hits.extend(search_firecrawl(query))
+        if len(hits) < 4:
+            hits.extend(duckduckgo_lite(query))
+        if len(hits) < 3:
+            hits.extend(brave_lite(query))
+
     seen: set[str] = set()
     uniq: list[SearchHit] = []
     for h in hits:
-        if h.url in seen:
+        url = unwrap_search_redirect(h.url)
+        if "baidu.com/link" in url or url.rstrip("/").endswith("baidu.com"):
             continue
-        seen.add(h.url)
-        uniq.append(h)
+        if url in seen:
+            continue
+        seen.add(url)
+        if url != h.url:
+            uniq.append(SearchHit(url=url, title=h.title, snippet=h.snippet, source=h.source))
+        else:
+            uniq.append(h)
     return uniq

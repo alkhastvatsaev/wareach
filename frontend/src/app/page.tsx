@@ -461,7 +461,7 @@ export default function Home() {
               </button>
             )}
           </div>
-          <p className="mt-4 min-h-5 text-xs text-white/65">
+          <div className="mt-4 min-h-5 text-xs text-white/65" data-status-line>
             {jobActive || running || autopilot ? (
               <span
                 className="inline-block"
@@ -483,7 +483,7 @@ export default function Home() {
               status
             )}
             {waAuth === false && !jobActive && " · session absente — ./scripts/whatsapp-login.sh"}
-          </p>
+          </div>
         </BentoCell>
 
         <BentoCell span="md:col-span-3">

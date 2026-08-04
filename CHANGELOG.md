@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 — 2026-08-04
+
+- Boost mode: restore peak-hour WA path (blitz 40×8, Yupoo raw 120×8, sleep 12s)
+- China-first discovery (Bing/Baidu before Exa) + resolve Baidu /link redirects
+- Skip dry offline/expand; randomize Yupoo expand seeds; virgin query seeds
+- POST /api/boost endpoint
+
 ## 0.1.1 — 2026-08-04
 
 - Fix reach stall: purge ~5.7k Bing redirect URLs blocking the crawl queue

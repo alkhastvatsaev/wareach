@@ -67,9 +67,10 @@ export default function LoadingState({
   const elapsed = useElapsed(active);
   const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
 
+  // Root must be a span — this component is sometimes nested under <p>
   return (
-    <div
-      className={`flex w-fit items-center gap-2.5 ${className}`}
+    <span
+      className={`inline-flex w-fit items-center gap-2.5 ${className}`}
       role="status"
       aria-live="polite"
       aria-label={`${label}, ${elapsed}`}
@@ -103,6 +104,6 @@ export default function LoadingState({
       <span className="font-mono text-[12px] tabular-nums text-[var(--muted-foreground)]">
         {elapsed}
       </span>
-    </div>
+    </span>
   );
 }

@@ -340,8 +340,8 @@ def trigger_auto_pipeline(
 
     offline = offline_harvest_all(db, limit=5000)
     drain = drain_wa_pending(db, limit=80, fetch_pages=False)
-    blitz = run_whatsapp_blitz(db, query_limit=query_limit, workers=3)
-    crawl = run_crawl_batch(db, limit=25)
+    blitz = run_whatsapp_blitz(db, query_limit=max(query_limit, 40), workers=8)
+    crawl = run_crawl_batch(db, limit=40)
     reharvest = reharvest_pending_snippets(db, limit=600)
     dedup = dedup_whatsapp_variants(db)
     dive = {"skipped": True}
@@ -498,7 +498,7 @@ def autopilot_set(enabled: bool = True, verify_wa: bool = True):
 
 
 @router.post("/autopilot/tick", response_model=JobTriggerOut)
-def autopilot_tick(background_tasks: BackgroundTasks, verify: bool = False):
+def autopilot_tick(background_tasks: BackgroundTasks, verify: bool = False, boost: bool = True):
     """Force one autopilot cycle in background."""
     from app.db.session import SessionLocal
     from app.services.autopilot import run_cycle
@@ -506,12 +506,34 @@ def autopilot_tick(background_tasks: BackgroundTasks, verify: bool = False):
     def _run():
         s = SessionLocal()
         try:
-            run_cycle(s, do_verify=verify)
+            run_cycle(s, do_verify=verify, boost=boost)
         finally:
             s.close()
 
     background_tasks.add_task(_run)
-    return JobTriggerOut(ok=True, job="autopilot_tick", result={"started": True, "verify": verify})
+    return JobTriggerOut(ok=True, job="autopilot_tick", result={"started": True, "verify": verify, "boost": boost})
+
+
+@router.post("/boost", response_model=JobTriggerOut)
+def trigger_boost(background_tasks: BackgroundTasks, rounds: int = 1):
+    """Ultra-fast WA discovery wave (peak-hour path: blitz 40×8 + Yupoo raw)."""
+    from app.db.session import SessionLocal
+    from app.services.autopilot import run_cycle
+    from app.services.engine_state import clear_cooldown
+
+    clear_cooldown()
+    rounds = max(1, min(int(rounds), 5))
+
+    def _run():
+        for _ in range(rounds):
+            s = SessionLocal()
+            try:
+                run_cycle(s, do_verify=False, boost=True)
+            finally:
+                s.close()
+
+    background_tasks.add_task(_run)
+    return JobTriggerOut(ok=True, job="boost", result={"started": True, "rounds": rounds})
 
 
 @router.get("/export/case-pack")

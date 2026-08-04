@@ -18,6 +18,7 @@ from app.services.whatsapp_harvest import harvest_hit_snippet, whatsapp_count
 logger = logging.getLogger(__name__)
 
 YUPOO_HOST = re.compile(r"https?://([a-zA-Z0-9\-]+)\.x\.yupoo\.com[^\s\"'<>]*", re.I)
+YUPOO_BARE = re.compile(r"([a-zA-Z0-9\-]{3,60})\.x\.yupoo\.com", re.I)
 MOBILE = re.compile(r"(?:whats?a?pp?)?(?:86)?(1[3-9]\d{9})", re.I)
 
 
@@ -54,6 +55,14 @@ def expand_from_html(html: str, base_url: str) -> tuple[list[SearchHit], list[st
         hits.append(SearchHit(url=root, title=title, snippet=url, source="yupoo_expand"))
         for pm in MOBILE.finditer(host):
             phones.append(pm.group(1))
+    for m in YUPOO_BARE.finditer(html or ""):
+        host = f"{m.group(1).lower()}.x.yupoo.com"
+        if host in seen:
+            continue
+        seen.add(host)
+        hits.append(SearchHit(url=f"https://{host}/", title=m.group(1), source="yupoo_expand"))
+        for pm in MOBILE.finditer(host):
+            phones.append(pm.group(1))
     for m in re.finditer(r'href=["\']([^"\']+)["\']', html or "", re.I):
         href = m.group(1)
         full = urljoin(base_url, href)
@@ -68,20 +77,33 @@ def expand_from_html(html: str, base_url: str) -> tuple[list[SearchHit], list[st
     return hits, phones
 
 
-def run_yupoo_expand(db: Session, *, seed_limit: int = 40, prefer_contact: bool = True) -> dict:
+def run_yupoo_expand(
+    db: Session,
+    *,
+    seed_limit: int = 40,
+    prefer_contact: bool = True,
+    randomize: bool = False,
+) -> dict:
+    from sqlalchemy import func
+
     before = whatsapp_count(db)
     job = JobRun(job_type="yupoo_expand", status="running", stats={})
     db.add(job)
     db.commit()
     db.refresh(job)
 
+    order = (
+        [func.random()]
+        if randomize
+        else [DiscoveredUrl.priority.desc(), DiscoveredUrl.id.desc()]
+    )
     candidates = list(
         db.scalars(
             select(DiscoveredUrl)
             .where(DiscoveredUrl.url.ilike("%yupoo%"))
             .where(DiscoveredUrl.status.in_(["pending", "done", "failed"]))
-            .order_by(DiscoveredUrl.priority.desc(), DiscoveredUrl.id.desc())
-            .limit(seed_limit * 3)
+            .order_by(*order)
+            .limit(seed_limit * 4)
         )
     )
     by_host: dict[str, DiscoveredUrl] = {}
@@ -102,7 +124,15 @@ def run_yupoo_expand(db: Session, *, seed_limit: int = 40, prefer_contact: bool 
         host = urlparse(seed.url).netloc
         paths = [seed.url]
         if prefer_contact and host:
-            paths = [f"https://{host}/", f"https://{host}/contact", f"https://{host}/about", seed.url]
+            paths = [
+                f"https://{host}/",
+                f"https://{host}/contact",
+                f"https://{host}/about",
+                f"https://{host}/categories",
+                f"https://{host}/albums",
+                f"https://{host}/collections",
+                seed.url,
+            ]
 
         seen_page: set[str] = set()
         for page_url in paths:

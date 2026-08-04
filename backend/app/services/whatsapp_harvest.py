@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -28,7 +29,22 @@ def harvest_hit_snippet(db: Session, hit: SearchHit, brand_hint: str | None) -> 
     text = "\n".join(filter(None, [hit.title, hit.snippet, hit.url]))
     low = text.lower()
     url_l = (hit.url or "").lower()
-    has_signal = any(x in low for x in ["whatsapp", "+86", "8613", "8615", "8618", "8619", "wa:", "wa："])
+    has_signal = any(
+        x in low
+        for x in [
+            "whatsapp",
+            "whats app",
+            "+86",
+            "8613",
+            "8615",
+            "8618",
+            "8619",
+            "wa:",
+            "wa：",
+            "wa.me",
+            "微信",
+        ]
+    )
     # Yupoo hosts often encode mobile in subdomain (18613…bag.x.yupoo.com)
     has_host_mobile = bool(
         "yupoo" in url_l and re.search(r"(?:^|//|/)(?:whats?a?pp?)?(?:86)?1[3-9]\d{9}", url_l)
@@ -61,7 +77,7 @@ def run_whatsapp_blitz(
     prefer_categories: list[str] | None = None,
 ) -> dict:
     """
-    Parallel Exa discovery + sequential DB harvest.
+    Parallel discovery + sequential DB harvest.
     Yupoo titles often embed WhatsApp:+86… — we extract before crawling.
     """
     before = whatsapp_count(db)
@@ -85,7 +101,7 @@ def run_whatsapp_blitz(
         select(SearchQuery)
         .where(SearchQuery.enabled.is_(True))
         .order_by(SearchQuery.last_run_at.nullsfirst(), SearchQuery.priority.desc())
-        .limit(query_limit * 3)
+        .limit(query_limit * 4)
     )
     candidates = list(db.scalars(stmt))
 
@@ -101,12 +117,14 @@ def run_whatsapp_blitz(
         s += int(sq.priority or 0)
         return s
 
-    queries = sorted(candidates, key=score_q, reverse=True)[:query_limit]
+    # Shuffle among top scorers so we don't burn the same queries every cycle
+    ranked = sorted(candidates, key=score_q, reverse=True)[: max(query_limit * 2, query_limit)]
+    random.shuffle(ranked)
+    queries = ranked[:query_limit]
     query_map = {q.query: q for q in queries}
 
-    # Parallel network only — keep workers modest to reduce Exa 429s
     discovered: list[tuple[SearchQuery, list[SearchHit]]] = []
-    with ThreadPoolExecutor(max_workers=max(1, min(workers, 4))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, 10))) as pool:
         futs = {pool.submit(_discover_one, q.query): q for q in queries}
         for fut in as_completed(futs):
             qtext, hits = fut.result()
