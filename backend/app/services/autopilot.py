@@ -47,12 +47,12 @@ def _get_row(db: Session) -> SystemMetric:
             key=KEY,
             value={
                 "enabled": True,
-                "verify_wa": True,
-                "sleep_sec": 12,
-                "wa_verify_every_n": 1,
+                "verify_wa": False,
+                "sleep_sec": 5,
+                "wa_verify_every_n": 99,
                 "wa_verify_limit": 25,
                 "wa_verify_delay_ms": 3500,
-                "wa_verify_sleep_sec": 20,
+                "wa_verify_sleep_sec": 60,
             },
         )
         db.add(row)
@@ -69,12 +69,12 @@ def get_config(db: Session | None = None) -> dict[str, Any]:
         row = _get_row(db)
         val = dict(row.value or {})
         val.setdefault("enabled", True)
-        val.setdefault("verify_wa", True)
-        val.setdefault("sleep_sec", 12)
-        val.setdefault("wa_verify_every_n", 1)
+        val.setdefault("verify_wa", False)
+        val.setdefault("sleep_sec", 5)
+        val.setdefault("wa_verify_every_n", 99)
         val.setdefault("wa_verify_limit", 25)
         val.setdefault("wa_verify_delay_ms", 3500)
-        val.setdefault("wa_verify_sleep_sec", 20)
+        val.setdefault("wa_verify_sleep_sec", 60)
         return val
     finally:
         if own:
@@ -107,11 +107,11 @@ def status_snapshot() -> dict[str, Any]:
     return {
         **live,
         "enabled": bool(cfg.get("enabled", True)),
-        "verify_wa": bool(cfg.get("verify_wa", True)),
-        "sleep_sec": int(cfg.get("sleep_sec", 12)),
-        "wa_verify_every_n": int(cfg.get("wa_verify_every_n", 1)),
+        "verify_wa": bool(cfg.get("verify_wa", False)),
+        "sleep_sec": int(cfg.get("sleep_sec", 5)),
+        "wa_verify_every_n": int(cfg.get("wa_verify_every_n", 99)),
         "wa_verify_limit": int(cfg.get("wa_verify_limit", 25)),
-        "wa_verify_sleep_sec": int(cfg.get("wa_verify_sleep_sec", 20)),
+        "wa_verify_sleep_sec": int(cfg.get("wa_verify_sleep_sec", 60)),
         "thread_alive": bool(_harvest_thread and _harvest_thread.is_alive()),
         "verify_thread_alive": bool(_verify_thread and _verify_thread.is_alive()),
         "parallel": True,
@@ -124,7 +124,7 @@ _offline_dry_streak = 0
 
 
 def run_cycle(db: Session, *, do_verify: bool = False, boost: bool = True) -> dict[str, Any]:
-    """Harvest cycle. boost=True = peak-hour path (large blitz + raw Yupoo)."""
+    """FIND-FIRST harvest — maximize new WhatsApp numbers (verify is off by default)."""
     global _expand_dry_streak, _offline_dry_streak
     from app.services.alerts import evaluate_alerts
     from app.services.drain import drain_wa_pending
@@ -157,20 +157,29 @@ def run_cycle(db: Session, *, do_verify: bool = False, boost: bool = True) -> di
         "purge": purge,
         "yupoo_pending": yupoo_pending,
         "boost": boost,
+        "mode": "find_max",
     }
 
+    # --- Highest ROI first: fetch pages that already show WA signals ---
+    result["drain"] = drain_wa_pending(db, limit=150 if boost else 100, fetch_pages=True)
+    result["raw"] = run_yupoo_raw_crawl(db, limit=150 if boost else 80, workers=10 if boost else 6)
+
+    # Second wave immediately — pending queue turns over fast with fetch
+    result["drain2"] = drain_wa_pending(db, limit=120 if boost else 60, fetch_pages=True)
+    result["raw2"] = run_yupoo_raw_crawl(db, limit=100 if boost else 40, workers=8)
+
     if _offline_dry_streak < 1:
-        offline = offline_harvest_all(db, limit=2000 if boost else 4000)
+        offline = offline_harvest_all(db, limit=3000)
         result["offline"] = offline
         gained = int((offline or {}).get("whatsapp_gained") or 0)
         _offline_dry_streak = 0 if gained > 0 else _offline_dry_streak + 1
     else:
         result["offline"] = {"skipped": "dry_streak", "streak": _offline_dry_streak}
-        _offline_dry_streak = (_offline_dry_streak + 1) % 6
+        _offline_dry_streak = (_offline_dry_streak + 1) % 8
 
-    if _expand_dry_streak < 2 or yupoo_pending < 80:
+    if _expand_dry_streak < 2 or yupoo_pending < 100:
         expand = run_yupoo_expand(
-            db, seed_limit=40 if boost else 30, prefer_contact=True, randomize=True
+            db, seed_limit=50 if boost else 30, prefer_contact=True, randomize=True
         )
         result["expand"] = expand
         added = int((expand or {}).get("urls_added") or 0)
@@ -178,42 +187,36 @@ def run_cycle(db: Session, *, do_verify: bool = False, boost: bool = True) -> di
     else:
         result["expand"] = {"skipped": "dry_streak", "streak": _expand_dry_streak}
 
-    result["raw"] = run_yupoo_raw_crawl(db, limit=120 if boost else 60, workers=8 if boost else 6)
-    # CRITICAL: fetch_pages=True — snippet-only drain was leaving WA on the page unread (+46 in one batch)
-    result["drain"] = drain_wa_pending(
-        db, limit=120 if boost else 80, fetch_pages=True if boost else False
-    )
-
-    # Search-engine-free virgin inventory (critical when Bing/Exa/Baidu are blocked)
-    if boost:
+    # Phone probe every other boost cycle — CPU heavy, low hit-rate when saturated
+    cycle_n = int((_state.get("cycle") or 0))
+    if boost and cycle_n % 2 == 1:
         from app.services.yupoo_phone_probe import run_yupoo_phone_probe
 
-        result["phone_probe"] = run_yupoo_phone_probe(db, limit=300, workers=14, mutate=True)
+        result["phone_probe"] = run_yupoo_phone_probe(db, limit=400, workers=16, mutate=True)
 
-    result["blitz"] = run_whatsapp_blitz(db, query_limit=40 if boost else 18, workers=8 if boost else 4)
-
+    result["blitz"] = run_whatsapp_blitz(db, query_limit=45 if boost else 20, workers=8)
     blitz_gained = int((result["blitz"] or {}).get("whatsapp_gained") or 0)
-    blitz_signal = int((result["blitz"] or {}).get("hits_with_wa_signal") or 0)
-    if boost and blitz_gained < 5 and blitz_signal < 8:
-        result["blitz2"] = run_whatsapp_blitz(db, query_limit=35, workers=8)
+    if boost and blitz_gained < 8:
+        result["blitz2"] = run_whatsapp_blitz(db, query_limit=40, workers=8)
 
-    result["crawl"] = run_crawl_batch(db, limit=50 if boost else 40)
+    result["crawl"] = run_crawl_batch(db, limit=60 if boost else 40)
 
-    if boost or yupoo_pending < 500:
-        try:
-            result["discovery"] = run_discovery_batch(db, limit=20 if boost else 12)
-        except Exception as exc:
-            result["discovery"] = {"error": str(exc)[:200]}
+    # Always refill discovery — need new Yupoo hosts for 10k
+    try:
+        result["discovery"] = run_discovery_batch(db, limit=25 if boost else 12)
+    except Exception as exc:
+        result["discovery"] = {"error": str(exc)[:200]}
 
-    result["reharvest"] = reharvest_pending_snippets(db, limit=800)
+    result["reharvest"] = reharvest_pending_snippets(db, limit=1000)
     result["dedup"] = dedup_whatsapp_variants(db)
 
+    # Verify only if explicitly requested — never the default path to 10k
     if do_verify:
         from app.services.wa_verify import auth_ready, run_whatsapp_verify
 
         if auth_ready():
             try:
-                result["wa_verify"] = run_whatsapp_verify(db, limit=20, delay_ms=3500)
+                result["wa_verify"] = run_whatsapp_verify(db, limit=10, delay_ms=3500)
             except Exception as exc:
                 result["wa_verify"] = {"ok": False, "error": str(exc)[:300]}
         else:
@@ -283,7 +286,7 @@ def _harvest_loop() -> None:
                 _state["running"] = False
             db.close()
 
-        sleep_sec = max(8, int(cfg.get("sleep_sec", 12)))
+        sleep_sec = max(3, int(cfg.get("sleep_sec", 5)))
         _stop.wait(sleep_sec)
 
     logger.info("Autopilot harvest thread stopped")
@@ -297,12 +300,12 @@ def _verify_loop() -> None:
     while not _stop.is_set():
         cfg = get_config()
         enabled = bool(cfg.get("enabled", True))
-        verify_on = bool(cfg.get("verify_wa", True))
+        verify_on = bool(cfg.get("verify_wa", False))
         if not enabled or not verify_on:
             with _lock:
                 _state["verify_running"] = False
-                _state["verify_phase"] = "paused" if enabled else "off"
-            _stop.wait(5)
+                _state["verify_phase"] = "off" if not verify_on else ("paused" if enabled else "off")
+            _stop.wait(15)
             continue
 
         if not auth_ready():

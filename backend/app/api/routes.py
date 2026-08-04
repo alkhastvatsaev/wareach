@@ -491,7 +491,7 @@ def autopilot_status(db: Session = Depends(get_db)):
 
 
 @router.post("/autopilot")
-def autopilot_set(enabled: bool = True, verify_wa: bool = True):
+def autopilot_set(enabled: bool = True, verify_wa: bool = False):
     from app.services.autopilot import set_enabled
 
     return set_enabled(enabled, verify_wa=verify_wa)

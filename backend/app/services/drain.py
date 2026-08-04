@@ -48,15 +48,17 @@ def drain_wa_pending(db: Session, *, limit: int = 80, fetch_pages: bool = False)
         and "google.com" not in (r.domain or "").lower()
         and "duckduckgo" not in (r.domain or "").lower()
     ]
-    signal_rows = [r for r in rows if _has_wa_signal(r)][:limit]
-    if len(signal_rows) < limit // 2:
-        extra = [
-            r
-            for r in rows
-            if r not in signal_rows
-            and ("yupoo" in (r.domain or "") or "yupoo" in (r.url or "").lower())
-        ]
-        signal_rows.extend(extra[: max(0, limit - len(signal_rows))])
+    signal_rows = [r for r in rows if _has_wa_signal(r)]
+    # Always pad with Yupoo pending — page fetch finds WA even without title signal
+    extra = [
+        r
+        for r in rows
+        if r not in signal_rows
+        and ("yupoo" in (r.domain or "") or "yupoo" in (r.url or "").lower())
+    ]
+    # Prefer signal first, then yupoo — fill up to limit
+    ordered = signal_rows + extra
+    signal_rows = ordered[:limit]
 
     snippet_ops = 0
     fetched = 0
