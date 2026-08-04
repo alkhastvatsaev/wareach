@@ -24,6 +24,55 @@ class SearchHit:
     source: str = "exa"
 
 
+def unwrap_search_redirect(url: str) -> str:
+    """Turn Bing/Google/Baidu tracking URLs into the destination when possible."""
+    from urllib.parse import parse_qs, unquote, urlparse
+    import base64
+
+    if not url or not url.startswith("http"):
+        return url
+    try:
+        p = urlparse(url)
+        host = (p.netloc or "").lower()
+        qs = parse_qs(p.query)
+
+        if "bing.com" in host:
+            raw = (qs.get("u") or [None])[0]
+            if raw:
+                payload = raw[2:] if raw.startswith("a1") else raw
+                pad = "=" * (-len(payload) % 4)
+                try:
+                    decoded = base64.urlsafe_b64decode(payload + pad).decode("utf-8", "ignore")
+                    if decoded.startswith("http"):
+                        return decoded
+                except Exception:
+                    pass
+            for key in ("r", "url"):
+                cand = (qs.get(key) or [None])[0]
+                if cand and str(cand).startswith("http"):
+                    return str(cand)
+
+        if "google." in host and ("/url" in p.path or "/search" in p.path):
+            for key in ("q", "url", "u"):
+                cand = (qs.get(key) or [None])[0]
+                if cand and str(cand).startswith("http"):
+                    return unquote(str(cand))
+
+        if "baidu.com" in host and ("url" in qs or "u" in qs):
+            for key in ("url", "u"):
+                cand = (qs.get(key) or [None])[0]
+                if cand and str(cand).startswith("http"):
+                    return unquote(str(cand))
+
+        if "duckduckgo.com" in host:
+            cand = (qs.get("uddg") or [None])[0]
+            if cand and str(cand).startswith("http"):
+                return unquote(str(cand))
+    except Exception:
+        logger.debug("unwrap_search_redirect failed for %s", url[:120], exc_info=True)
+    return url
+
+
 def _parse_exa_text(output: str) -> list[SearchHit]:
     hits: list[SearchHit] = []
     blocks = re.split(r"\n(?=Title:)", output)
@@ -268,7 +317,14 @@ def bing_lite(query: str, max_results: int = 10) -> list[SearchHit]:
                 snip_el = li.select_one(".b_caption p") or li.select_one("p")
                 snip = snip_el.get_text(" ", strip=True) if snip_el else None
                 if href and str(href).startswith("http"):
-                    hits.append(SearchHit(url=str(href), title=title, snippet=snip, source="bing"))
+                    hits.append(
+                        SearchHit(
+                            url=unwrap_search_redirect(str(href)),
+                            title=title,
+                            snippet=snip,
+                            source="bing",
+                        )
+                    )
     except Exception:
         logger.exception("bing search failed")
     return hits
@@ -333,8 +389,8 @@ def baidu_lite(query: str, max_results: int = 8) -> list[SearchHit]:
             final = str(r.url)
             body = r.text[:2000].lower()
             if "wappass.baidu.com" in final or "captcha" in body or "验证" in r.text[:1500]:
-                mark_rate_limited("baidu", 1800)
-                logger.info("baidu captcha — cooling 30min")
+                mark_rate_limited("baidu", 300)
+                logger.info("baidu captcha — cooling 5min")
                 return []
             r.raise_for_status()
             from bs4 import BeautifulSoup

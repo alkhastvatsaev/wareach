@@ -48,7 +48,7 @@ def _get_row(db: Session) -> SystemMetric:
             value={
                 "enabled": True,
                 "verify_wa": True,
-                "sleep_sec": 55,
+                "sleep_sec": 28,
                 "wa_verify_every_n": 1,
                 "wa_verify_limit": 25,
                 "wa_verify_delay_ms": 3500,
@@ -70,7 +70,7 @@ def get_config(db: Session | None = None) -> dict[str, Any]:
         val = dict(row.value or {})
         val.setdefault("enabled", True)
         val.setdefault("verify_wa", True)
-        val.setdefault("sleep_sec", 55)
+        val.setdefault("sleep_sec", 28)
         val.setdefault("wa_verify_every_n", 1)
         val.setdefault("wa_verify_limit", 25)
         val.setdefault("wa_verify_delay_ms", 3500)
@@ -108,7 +108,7 @@ def status_snapshot() -> dict[str, Any]:
         **live,
         "enabled": bool(cfg.get("enabled", True)),
         "verify_wa": bool(cfg.get("verify_wa", True)),
-        "sleep_sec": int(cfg.get("sleep_sec", 55)),
+        "sleep_sec": int(cfg.get("sleep_sec", 28)),
         "wa_verify_every_n": int(cfg.get("wa_verify_every_n", 1)),
         "wa_verify_limit": int(cfg.get("wa_verify_limit", 25)),
         "wa_verify_sleep_sec": int(cfg.get("wa_verify_sleep_sec", 20)),
@@ -119,31 +119,71 @@ def status_snapshot() -> dict[str, Any]:
     }
 
 
+_expand_dry_streak = 0
+
+
 def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
     """Harvest cycle only. WA verify runs on its own parallel thread."""
+    global _expand_dry_streak
     from app.services.alerts import evaluate_alerts
     from app.services.drain import drain_wa_pending
     from app.services.offline_harvest import offline_harvest_all
-    from app.services.pipeline import run_crawl_batch
+    from app.services.pipeline import purge_junk_urls, run_crawl_batch, run_discovery_batch
     from app.services.quality import dedup_whatsapp_variants
     from app.services.reharvest import reharvest_pending_snippets
     from app.services.whatsapp_harvest import run_whatsapp_blitz
     from app.services.yupoo_expand import run_yupoo_expand
     from app.services.yupoo_raw import run_yupoo_raw_crawl
+    from app.models.entities import DiscoveredUrl
+    from sqlalchemy import func, select
 
     before = whatsapp_count(db)
     reclaim_stale_url_jobs()
+
+    # Unblock queue: Bing redirect junk was starving Yupoo crawl (~5.7k pending)
+    purge = purge_junk_urls(db)
+
+    yupoo_pending = (
+        db.scalar(
+            select(func.count())
+            .select_from(DiscoveredUrl)
+            .where(DiscoveredUrl.status == "pending")
+            .where(DiscoveredUrl.domain.ilike("%yupoo%"))
+        )
+        or 0
+    )
+
     result: dict[str, Any] = {
         "whatsapp_before": before,
+        "purge": purge,
+        "yupoo_pending": yupoo_pending,
         "offline": offline_harvest_all(db, limit=4000),
-        "expand": run_yupoo_expand(db, seed_limit=20, prefer_contact=True),
-        "raw": run_yupoo_raw_crawl(db, limit=35, workers=4),
-        "drain": drain_wa_pending(db, limit=50, fetch_pages=False),
-        "blitz": run_whatsapp_blitz(db, query_limit=14, workers=3),
-        "crawl": run_crawl_batch(db, limit=18),
-        "reharvest": reharvest_pending_snippets(db, limit=500),
-        "dedup": dedup_whatsapp_variants(db),
     }
+
+    # Expand plateaus (urls_added=0) burn cycle time — skip after 2 dry runs
+    if _expand_dry_streak < 2 or yupoo_pending < 80:
+        expand = run_yupoo_expand(db, seed_limit=30, prefer_contact=True)
+        result["expand"] = expand
+        added = int((expand or {}).get("urls_added") or (expand or {}).get("added") or 0)
+        _expand_dry_streak = 0 if added > 0 else _expand_dry_streak + 1
+    else:
+        result["expand"] = {"skipped": "dry_streak", "streak": _expand_dry_streak}
+
+    result["raw"] = run_yupoo_raw_crawl(db, limit=60, workers=6)
+    result["drain"] = drain_wa_pending(db, limit=80, fetch_pages=False)
+    result["blitz"] = run_whatsapp_blitz(db, query_limit=18, workers=4)
+    result["crawl"] = run_crawl_batch(db, limit=40)
+
+    # Refill when Yupoo queue is thin
+    if yupoo_pending < 200:
+        try:
+            result["discovery"] = run_discovery_batch(db, limit=12)
+        except Exception as exc:
+            result["discovery"] = {"error": str(exc)[:200]}
+
+    result["reharvest"] = reharvest_pending_snippets(db, limit=800)
+    result["dedup"] = dedup_whatsapp_variants(db)
+
     # Optional inline verify kept for /autopilot/tick?verify=true
     if do_verify:
         from app.services.wa_verify import auth_ready, run_whatsapp_verify
@@ -163,7 +203,6 @@ def run_cycle(db: Session, *, do_verify: bool = False) -> dict[str, Any]:
     result["whatsapp_after"] = after
     result["whatsapp_gained"] = max(0, after - before)
     return result
-
 
 def _harvest_loop() -> None:
     logger.info("Autopilot harvest thread started")
@@ -220,7 +259,7 @@ def _harvest_loop() -> None:
                 _state["running"] = False
             db.close()
 
-        sleep_sec = max(20, int(cfg.get("sleep_sec", 55)))
+        sleep_sec = max(15, int(cfg.get("sleep_sec", 28)))
         _stop.wait(sleep_sec)
 
     logger.info("Autopilot harvest thread stopped")

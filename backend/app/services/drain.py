@@ -41,6 +41,13 @@ def drain_wa_pending(db: Session, *, limit: int = 80, fetch_pages: bool = False)
             .limit(limit * 4)
         )
     )
+    rows = [
+        r
+        for r in rows
+        if "bing" not in (r.domain or "").lower()
+        and "google.com" not in (r.domain or "").lower()
+        and "duckduckgo" not in (r.domain or "").lower()
+    ]
     signal_rows = [r for r in rows if _has_wa_signal(r)][:limit]
     if len(signal_rows) < limit // 2:
         extra = [

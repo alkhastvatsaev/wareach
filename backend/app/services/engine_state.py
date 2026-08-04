@@ -27,6 +27,8 @@ def _redis():
 
 
 def mark_rate_limited(engine: str, seconds: float = 120.0) -> None:
+    # Cap so one captcha does not idle discovery for 30+ minutes
+    seconds = min(float(seconds), 300.0)
     until = time.time() + seconds
     with _lock:
         _local[engine] = max(_local.get(engine, 0), until)
@@ -37,6 +39,24 @@ def mark_rate_limited(engine: str, seconds: float = 120.0) -> None:
             r.expire(_KEY, int(max(seconds, 60)) + 3600)
         except Exception:
             logger.debug("redis cooldown write failed", exc_info=True)
+
+
+def clear_cooldown(engine: str | None = None) -> None:
+    with _lock:
+        if engine is None:
+            _local.clear()
+        else:
+            _local.pop(engine, None)
+    r = _redis()
+    if not r:
+        return
+    try:
+        if engine is None:
+            r.delete(_KEY)
+        else:
+            r.hdel(_KEY, engine)
+    except Exception:
+        logger.debug("redis cooldown clear failed", exc_info=True)
 
 
 def is_available(engine: str) -> bool:

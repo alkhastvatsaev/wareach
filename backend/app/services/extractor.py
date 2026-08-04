@@ -123,10 +123,36 @@ NEWS_OR_NOISE_DOMAINS = {
     "news.wto168.net",
 }
 
+# Search-engine redirect hosts — never crawl; they starve the Yupoo queue
+CRAWL_JUNK_DOMAINS = {
+    "bing.com",
+    "cn.bing.com",
+    "www.bing.com",
+    "microsoft.com",
+    "google.com",
+    "google.co.uk",
+    "google.com.hk",
+    "googleusercontent.com",
+    "duckduckgo.com",
+    "yandex.com",
+    "yandex.ru",
+    "search.yahoo.com",
+    "yahoo.com",
+    "wappass.baidu.com",
+    "baidu.com",
+    "so.com",
+    "sogou.com",
+}
+
 
 def is_noise_domain(domain: str) -> bool:
     d = (domain or "").lower()
     return any(d == n or d.endswith("." + n) for n in NEWS_OR_NOISE_DOMAINS)
+
+
+def is_junk_crawl_domain(domain: str) -> bool:
+    d = (domain or "").lower().removeprefix("www.")
+    return any(d == n or d.endswith("." + n) for n in CRAWL_JUNK_DOMAINS)
 
 
 def classify_lead(

@@ -10,10 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.entities import Contact, DiscoveredUrl, Evidence, JobRun, SearchQuery, Supplier, SystemMetric
-from app.services.discovery import SearchHit, discover, fetch_page_content
+from app.services.discovery import SearchHit, discover, fetch_page_content, unwrap_search_redirect
 from app.services.extractor import (
     domain_of,
     extract_all,
+    is_junk_crawl_domain,
     supplier_key_from_contacts,
     url_hash,
 )
@@ -34,15 +35,19 @@ def upsert_discovered_urls(
 ) -> int:
     added = 0
     for hit in hits:
-        h = url_hash(hit.url)
+        url = unwrap_search_redirect(hit.url)
+        domain = domain_of(url)
+        if is_junk_crawl_domain(domain):
+            continue
+        h = url_hash(url)
         existing = db.scalar(select(DiscoveredUrl).where(DiscoveredUrl.url_hash == h))
         if existing:
             continue
         db.add(
             DiscoveredUrl(
-                url=hit.url,
+                url=url,
                 url_hash=h,
-                domain=domain_of(hit.url),
+                domain=domain,
                 title=hit.title,
                 snippet=hit.snippet,
                 source_query=source_query,
@@ -58,6 +63,38 @@ def upsert_discovered_urls(
             db.rollback()
     return added
 
+
+def purge_junk_urls(db: Session, *, limit: int = 20000) -> dict:
+    """Mark search-engine redirect junk as ignored so crawl focuses on Yupoo."""
+    junk_hosts = (
+        "bing.com",
+        "cn.bing.com",
+        "google.com",
+        "duckduckgo.com",
+        "yahoo.com",
+        "yandex.",
+        "wappass.baidu.com",
+        "so.com",
+        "sogou.com",
+    )
+    rows = list(
+        db.scalars(
+            select(DiscoveredUrl)
+            .where(DiscoveredUrl.status.in_(["pending", "failed", "crawling"]))
+            .limit(limit)
+        )
+    )
+    purged = 0
+    for row in rows:
+        dom = (row.domain or "").lower()
+        url = (row.url or "").lower()
+        if is_junk_crawl_domain(dom) or any(h in dom or h in url for h in junk_hosts):
+            row.status = "ignored"
+            purged += 1
+    if purged:
+        db.commit()
+        logger.info("Purged %s junk crawl URLs (bing/search redirects)", purged)
+    return {"purged": purged}
 
 def merge_supplier_from_extraction(
     db: Session,
@@ -318,35 +355,43 @@ def run_crawl_batch(db: Session, limit: int = 30) -> dict:
             .where(DiscoveredUrl.status.in_(["pending", "failed"]))
             .where(DiscoveredUrl.fail_count < 5)
             .order_by(DiscoveredUrl.priority.desc(), DiscoveredUrl.discovered_at.asc())
-            .limit(limit * 5)
+            .limit(max(limit * 20, 200))
         )
     )
 
     def crawl_score(row: DiscoveredUrl) -> int:
         blob = f"{row.title or ''} {row.snippet or ''}".lower()
+        dom = (row.domain or "").lower()
+        url = (row.url or "").lower()
+        if is_junk_crawl_domain(dom) or "bing.com" in url or "google.com/url" in url:
+            return -10_000
         s = int(row.priority or 0)
-        if any(x in blob for x in ["whatsapp", "+86", "8613", "8615", "8618", "wa.me"]):
+        if any(x in blob for x in ["whatsapp", "+86", "8613", "8615", "8618", "wa.me", "微信", "wechat"]):
             s += 500
-        if "yupoo" in (row.domain or "") or "yupoo" in (row.url or "").lower():
-            s += 200
-        if any(x in (row.domain or "") for x in ["weidian", "wsxc", "1688"]):
-            s += 80
+        if "yupoo" in dom or "yupoo" in url:
+            s += 400
+        if any(x in dom for x in ["weidian", "wsxc", "1688", "alibaba", "dhgate"]):
+            s += 120
         return s
 
-    rows = sorted(candidates, key=crawl_score, reverse=True)[:limit]
+    scored = [(crawl_score(r), r) for r in candidates]
+    scored = [(s, r) for s, r in scored if s > -1000]
+    rows = [r for _, r in sorted(scored, key=lambda t: t[0], reverse=True)[:limit]]
 
     crawled = 0
     suppliers_touched = 0
     contacts = 0
     failed = 0
+    ignored = 0
 
     for row in rows:
-        # Skip known media noise early
-        if any(
+        # Skip known media / search-engine junk early
+        if is_junk_crawl_domain(row.domain or "") or any(
             x in (row.domain or "")
-            for x in ["thepaper", "36kr", "qq.com", "zhihu", "baidu.com", "wikipedia"]
+            for x in ["thepaper", "36kr", "qq.com", "zhihu", "baidu.com", "wikipedia", "bing"]
         ):
             row.status = "ignored"
+            ignored += 1
             db.commit()
             continue
         row.status = "crawling"
@@ -394,6 +439,7 @@ def run_crawl_batch(db: Session, limit: int = 30) -> dict:
     job.stats = {
         "crawled": crawled,
         "failed": failed,
+        "ignored": ignored,
         "suppliers_touched": suppliers_touched,
         "contacts": contacts,
         "batch_size": len(rows),
