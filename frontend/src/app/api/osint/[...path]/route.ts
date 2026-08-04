@@ -22,6 +22,9 @@ async function proxy(req: NextRequest, pathParts: string[]) {
   const ct = req.headers.get("content-type");
   if (ct) headers.set("content-type", ct);
   headers.set("accept", req.headers.get("accept") || "application/json");
+  // ngrok free interstitial bypass for server-side proxy
+  headers.set("ngrok-skip-browser-warning", "1");
+  headers.set("user-agent", "WAREACH-Vercel-Proxy/1.0");
 
   let body: ArrayBuffer | undefined;
   if (req.method !== "GET" && req.method !== "HEAD") {
