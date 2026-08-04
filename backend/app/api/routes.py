@@ -21,9 +21,15 @@ router = APIRouter()
 settings = get_settings()
 
 
+@router.get("/ping")
+def ping():
+    """Ultra-light liveness — never runs doctor / heavy IO."""
+    return {"ok": True, "app": settings.app_name}
+
+
 @router.get("/health", response_model=HealthOut)
 def health(db: Session = Depends(get_db)):
-    # Prefer cached doctor (Celery refreshes); avoid 60s subprocess on every health hit
+    # Prefer cached doctor only — never block health on run_doctor() (can take 60s)
     doctor: dict[str, Any] = {}
     from_cache = False
     try:
@@ -33,8 +39,6 @@ def health(db: Session = Depends(get_db)):
             from_cache = True
     except Exception:
         doctor = {}
-    if not doctor:
-        doctor = run_doctor()
 
     db_ok = True
     try:
@@ -49,12 +53,15 @@ def health(db: Session = Depends(get_db)):
     except Exception:
         redis_ok = False
 
-    backends = discovery_backends_ready(doctor)
-    status = "ok" if db_ok and (backends.get("exa") or backends.get("jina_web")) else "degraded"
+    backends = discovery_backends_ready(doctor) if doctor else {"exa": False, "jina_web": False}
+    # DB up ⇒ ok (engines may warm in background)
+    status = "ok" if db_ok else "down"
+    if db_ok and doctor and not (backends.get("exa") or backends.get("jina_web")):
+        status = "degraded"
     return HealthOut(
         status=status,
         agent_reach={
-            "channels": [c.__dict__ for c in summarize_doctor(doctor)],
+            "channels": [c.__dict__ for c in summarize_doctor(doctor)] if doctor else [],
             "raw_keys": [k for k in doctor.keys() if not k.startswith("_")],
             "error": doctor.get("_error"),
             "cached": from_cache,

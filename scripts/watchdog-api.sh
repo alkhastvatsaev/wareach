@@ -10,8 +10,10 @@ INTERVAL="${WATCHDOG_INTERVAL:-12}"
 
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$WATCH_LOG"; }
 
+# Prefer /api/ping (instant). Fallback to /api/health (must stay light).
 is_up() {
-  curl -sf -m 3 "http://127.0.0.1:8000/api/health" >/dev/null 2>&1
+  curl -sf -m 3 "http://127.0.0.1:8000/api/ping" >/dev/null 2>&1 \
+    || curl -sf -m 3 "http://127.0.0.1:8000/api/stats" >/dev/null 2>&1
 }
 
 start_api() {

@@ -63,7 +63,11 @@ export default function Home() {
     } catch {
       setApiOk(false);
       setStats(null);
-      setError("API hors ligne — clique Connecter l’API");
+      setError(
+        typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+          ? "API hors ligne — en cloud, définis BACKEND_URL (HTTPS) ou ouvre http://localhost:3000"
+          : "API hors ligne — clique Connecter l’API"
+      );
     }
   }, []);
 
@@ -187,11 +191,12 @@ export default function Home() {
     try {
       const res = await luxApi.connectBackend();
       setStatus(res.message || (res.ok ? "API OK" : "Démarrage…"));
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
+      for (let i = 0; i < 12; i++) {
+        await new Promise((r) => setTimeout(r, 800));
         try {
           await luxApi.stats();
           await load();
+          setError(null);
           setStatus("API reconnectée");
           return;
         } catch {
@@ -199,8 +204,10 @@ export default function Home() {
         }
       }
       await load();
-    } catch {
-      setStatus("Échec connexion — ./scripts/start-autopilot.sh");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Échec connexion";
+      setError(msg);
+      setStatus(msg);
     } finally {
       setConnecting(false);
     }

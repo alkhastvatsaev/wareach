@@ -18,3 +18,4 @@ tools/whatsapp/node_modules/
 celerybeat-schedule*
 .vercel/
 *.log
+.gstack/
