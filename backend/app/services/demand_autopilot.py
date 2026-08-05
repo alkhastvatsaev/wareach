@@ -38,6 +38,8 @@ def _get_row(db) -> SystemMetric:
                 "sleep_sec": 120,
                 "supplier_limit": 25,
                 "query_limit": 15,
+                "enrich_limit": 20,
+                "include_platforms": True,
             },
         )
         db.add(row)
@@ -55,6 +57,8 @@ def get_config() -> dict[str, Any]:
         val.setdefault("sleep_sec", 120)
         val.setdefault("supplier_limit", 25)
         val.setdefault("query_limit", 15)
+        val.setdefault("enrich_limit", 20)
+        val.setdefault("include_platforms", True)
         return val
     finally:
         db.close()
@@ -80,17 +84,28 @@ def _loop() -> None:
             _stop.wait(10)
             continue
 
+        cycle_n = 0
         with _lock:
             _state["running"] = True
-            _state["phase"] = "finding"
-            _state["cycle"] = int(_state.get("cycle") or 0) + 1
+            cycle_n = int(_state.get("cycle") or 0) + 1
+            _state["cycle"] = cycle_n
+            if cycle_n % 3 == 0:
+                _state["phase"] = "platforms"
+            elif cycle_n % 3 == 1:
+                _state["phase"] = "reverse_fr"
+            else:
+                _state["phase"] = "enrich"
 
         db = SessionLocal()
         try:
+            include_platforms = bool(cfg.get("include_platforms", True))
             result = run_demand_cycle(
                 db,
                 supplier_limit=int(cfg.get("supplier_limit", 25)),
                 query_limit=int(cfg.get("query_limit", 15)),
+                enrich_limit=int(cfg.get("enrich_limit", 20)),
+                include_platforms=include_platforms,
+                include_enrich=True,
             )
             result["stats"] = demand_stats(db)
             with _lock:

@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     )
     evidence_dir: str = str(ROOT / "data" / "evidence")
 
+    # LuxFind FR façade (Phase 2 demand capture)
+    facade_brand_name: str = "LuxFind FR"
+    facade_telegram_url: str = "https://t.me/luxfindfr"
+    facade_tagline: str = "Guide discret pour acheteurs exigeants"
+    telegram_bot_token: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

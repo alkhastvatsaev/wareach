@@ -54,6 +54,41 @@ export type Contact = {
   open_url: string | null;
 };
 
+export type DemandStats = {
+  consumer_leads: number;
+  fr_leads: number;
+  qualified_buyers: number;
+  by_platform: Record<string, number>;
+  by_status?: Record<string, number>;
+  contact_found: number;
+  contact_queued?: number;
+  contact_contacted?: number;
+  contact_engaged?: number;
+};
+
+export type ConsumerLead = {
+  id: number;
+  platform: string;
+  handle: string;
+  display_name: string | null;
+  profile_url: string | null;
+  language: string;
+  country_hint: string | null;
+  brands_interest: string[];
+  buyer_score: number;
+  lead_role: string;
+  contact_status: string;
+  contact_method: string | null;
+  source_type: string;
+  source_url: string | null;
+  supplier_id: number | null;
+  supplier_ref: string | null;
+  snippet: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  seen_count: number;
+};
+
 export const luxApi = {
   stats: () => api<Stats>("/stats"),
   queue: () =>
@@ -111,6 +146,52 @@ export const luxApi = {
       `/autopilot?enabled=${enabled}&verify_wa=${verify_wa}`,
       { method: "POST" }
     ),
+  demandStats: () => api<DemandStats>("/demand/stats"),
+  consumers: (qs = "limit=50") => api<ConsumerLead[]>(`/consumers?${qs}`),
+  consumersQueue: (limit = 50) => api<ConsumerLead[]>(`/consumers/queue?limit=${limit}`),
+  enqueueConsumer: (id: number, note?: string) =>
+    api<ConsumerLead>(
+      `/consumers/${id}/enqueue${note ? `?note=${encodeURIComponent(note)}` : ""}`,
+      { method: "POST" }
+    ),
+  patchConsumerContact: (id: number, status: string, note?: string) =>
+    api<ConsumerLead>(`/consumers/${id}/contact`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, note }),
+    }),
+  demandTick: () =>
+    api<{ ok: boolean }>("/demand/tick", { method: "POST" }),
+  demandHarvest: () =>
+    api<{ ok: boolean }>("/demand/harvest", { method: "POST" }),
+  demandEnrich: () =>
+    api<{ ok: boolean }>("/demand/enrich", { method: "POST" }),
+  demandAutopilot: () =>
+    api<{
+      enabled: boolean;
+      running: boolean;
+      phase: string;
+      cycle: number;
+      thread_alive: boolean;
+      last_result?: { consumers_gained?: number; consumers_after?: number } | null;
+      last_error?: string | null;
+    }>("/demand/autopilot"),
+  setDemandAutopilot: (enabled: boolean) =>
+    api<{ enabled: boolean }>(`/demand/autopilot?enabled=${enabled}`, { method: "POST" }),
+  consumersExportUrl: (fmt: "csv" | "json" = "csv") =>
+    `${API}/consumers/export?fmt=${fmt}`,
+  captureLead: (body: {
+    email?: string;
+    telegram?: string;
+    brand_interest?: string;
+    source?: string;
+    message?: string;
+  }) =>
+    api<ConsumerLead>("/leads/capture", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  facadeConfig: () =>
+    api<{ brand_name: string; telegram_url: string; tagline: string }>("/facade/config"),
   connectBackend: async () => {
     const res = await fetch("/api/backend/start", { method: "POST", cache: "no-store" });
     const data = (await res.json().catch(() => ({}))) as {

@@ -93,7 +93,7 @@ app = FastAPI(
         "Detects HQ replicas (god-tier) and China jewelry OEM factories (Cartier, VCA, Tiffany…). "
         "Powered by Agent Reach (Exa + Jina), Firecrawl, Playwright."
     ),
-    version="2.0.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -113,7 +113,7 @@ app.include_router(router, prefix="/api")
 def root():
     return {
         "name": "WAREACH",
-        "version": "2.0.0",
+        "version": "0.3.0",
         "clients": ["LVMH", "Richemont", "peer maisons"],
         "focus": [
             "hq_replica_sellers",

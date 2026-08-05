@@ -437,11 +437,24 @@ def run_fr_consumer_discovery(db: Session, *, query_limit: int = 25) -> dict:
     return stats
 
 
-def run_demand_cycle(db: Session, *, supplier_limit: int = 30, query_limit: int = 20) -> dict:
-    """Full Phase 2 cycle: reverse lookup + FR discovery."""
+def run_demand_cycle(
+    db: Session,
+    *,
+    supplier_limit: int = 30,
+    query_limit: int = 20,
+    enrich_limit: int = 20,
+    include_platforms: bool = True,
+    include_enrich: bool = True,
+) -> dict:
+    """Full Phase 2 cycle: reverse lookup + FR discovery + platforms + enrich."""
+    from app.services.consumer_enrich import enrich_pending
+    from app.services.platform_harvest import run_platform_harvest
+
     before = db.scalar(select(func.count()).select_from(ConsumerLead)) or 0
     rev = reverse_lookup_suppliers(db, limit=supplier_limit)
     fr = run_fr_consumer_discovery(db, query_limit=query_limit)
+    platforms = run_platform_harvest(db) if include_platforms else {}
+    enrich = enrich_pending(db, limit=enrich_limit) if include_enrich else {}
     after = db.scalar(select(func.count()).select_from(ConsumerLead)) or 0
     fr_leads = db.scalar(
         select(func.count()).select_from(ConsumerLead).where(ConsumerLead.country_hint == "FR")
@@ -460,6 +473,8 @@ def run_demand_cycle(db: Session, *, supplier_limit: int = 30, query_limit: int 
         "qualified_buyers": buyers,
         "reverse_lookup": rev,
         "fr_discovery": fr,
+        "platform_harvest": platforms,
+        "enrich": enrich,
     }
 
 
@@ -481,13 +496,19 @@ def demand_stats(db: Session) -> dict:
             .order_by(func.count().desc())
         ).all()
     )
+    by_status = dict(
+        db.execute(
+            select(ConsumerLead.contact_status, func.count()).group_by(ConsumerLead.contact_status)
+        ).all()
+    )
     return {
         "consumer_leads": total,
         "fr_leads": fr,
         "qualified_buyers": buyers,
         "by_platform": by_platform,
-        "contact_found": db.scalar(
-            select(func.count()).select_from(ConsumerLead).where(ConsumerLead.contact_status == "found")
-        )
-        or 0,
+        "by_status": by_status,
+        "contact_found": by_status.get("found", 0),
+        "contact_queued": by_status.get("queued", 0),
+        "contact_contacted": by_status.get("contacted", 0),
+        "contact_engaged": by_status.get("engaged", 0),
     }

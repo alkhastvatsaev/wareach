@@ -24,6 +24,7 @@ import Velaris from "@/components/ui/velaris";
 import { AnimatedNumber } from "@/components/wareach/animated-number";
 import { ProgressTrack } from "@/components/wareach/progress-track";
 import { LiveDot } from "@/components/wareach/live-dot";
+import { OpsNav } from "@/components/wareach/ops-nav";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
@@ -286,10 +287,12 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      <OpsNav />
+
       <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-teal-300/90">
-            Brand protection OSINT
+            Brand protection OSINT · Supply
           </p>
           <h1 className="font-display text-4xl font-bold tracking-tight text-white md:text-5xl">WAREACH</h1>
           <p className="mt-2 max-w-md text-sm text-white/65">

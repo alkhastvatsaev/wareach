@@ -124,4 +124,28 @@ class DemandStatsOut(BaseModel):
     fr_leads: int
     qualified_buyers: int
     by_platform: dict[str, int] = Field(default_factory=dict)
+    by_status: dict[str, int] = Field(default_factory=dict)
     contact_found: int = 0
+    contact_queued: int = 0
+    contact_contacted: int = 0
+    contact_engaged: int = 0
+
+
+class ContactUpdateIn(BaseModel):
+    status: str
+    note: str | None = None
+    contact_method: str | None = None
+
+
+class LeadCaptureIn(BaseModel):
+    email: str | None = None
+    telegram: str | None = None
+    brand_interest: str | None = None
+    source: str = "facade"
+    message: str | None = None
+
+
+class FacadeConfigOut(BaseModel):
+    brand_name: str
+    telegram_url: str
+    tagline: str

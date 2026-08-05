@@ -16,9 +16,12 @@ from app.models.entities import ConsumerLead, Contact, DiscoveredUrl, JobRun, Se
 from app.schemas.api import (
     ConsumerLeadOut,
     ContactOut,
+    ContactUpdateIn,
     DemandStatsOut,
+    FacadeConfigOut,
     HealthOut,
     JobTriggerOut,
+    LeadCaptureIn,
     StatsOut,
     SupplierOut,
 )
@@ -809,3 +812,162 @@ def demand_autopilot_set(enabled: bool = True):
     if enabled:
         start_demand_autopilot_thread()
     return get_config() | {"enabled": enabled}
+
+
+@router.get("/consumers/queue", response_model=list[ConsumerLeadOut])
+def consumers_queue(
+    db: Session = Depends(get_db),
+    limit: int = Query(50, le=200),
+    offset: int = 0,
+):
+    from app.services.contact_queue import list_queue
+
+    return list_queue(db, limit=limit, offset=offset)
+
+
+@router.post("/consumers/{lead_id}/enqueue", response_model=ConsumerLeadOut)
+def consumers_enqueue(
+    lead_id: int,
+    note: str | None = None,
+    db: Session = Depends(get_db),
+):
+    from app.services.contact_queue import enqueue_lead
+
+    lead = enqueue_lead(db, lead_id, note=note)
+    if not lead:
+        raise HTTPException(404, "Consumer lead not found")
+    return lead
+
+
+@router.patch("/consumers/{lead_id}/contact", response_model=ConsumerLeadOut)
+def consumers_contact_update(
+    lead_id: int,
+    body: ContactUpdateIn,
+    db: Session = Depends(get_db),
+):
+    from app.services.contact_queue import update_contact_status
+
+    try:
+        lead = update_contact_status(
+            db,
+            lead_id,
+            status=body.status,
+            note=body.note,
+            contact_method=body.contact_method,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not lead:
+        raise HTTPException(404, "Consumer lead not found")
+    return lead
+
+
+@router.get("/consumers/export")
+def consumers_export(
+    db: Session = Depends(get_db),
+    fmt: str = Query("csv", pattern="^(csv|json)$"),
+    status: str | None = None,
+    platform: str | None = None,
+    min_score: float = 0,
+    limit: int = Query(2000, le=10000),
+):
+    from app.services.contact_queue import export_consumers
+
+    media, filename, body = export_consumers(
+        db, fmt=fmt, status=status, platform=platform, min_score=min_score, limit=limit
+    )
+    return StreamingResponse(
+        io.BytesIO(body),
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/demand/templates")
+def demand_templates(brand: str = "Louis Vuitton"):
+    from app.services.outreach_templates import all_templates
+
+    return all_templates(brand=brand)
+
+
+@router.post("/demand/enrich", response_model=JobTriggerOut)
+def demand_enrich(background_tasks: BackgroundTasks, limit: int = 25):
+    from app.db.session import SessionLocal
+    from app.services.consumer_enrich import enrich_pending
+
+    def _run():
+        s = SessionLocal()
+        try:
+            enrich_pending(s, limit=limit)
+        finally:
+            s.close()
+
+    background_tasks.add_task(_run)
+    return JobTriggerOut(ok=True, job="consumer_enrich", result={"started": True, "limit": limit})
+
+
+@router.post("/demand/harvest", response_model=JobTriggerOut)
+def demand_harvest(background_tasks: BackgroundTasks):
+    from app.db.session import SessionLocal
+    from app.services.platform_harvest import run_platform_harvest
+
+    def _run():
+        s = SessionLocal()
+        try:
+            run_platform_harvest(s)
+        finally:
+            s.close()
+
+    background_tasks.add_task(_run)
+    return JobTriggerOut(ok=True, job="platform_harvest", result={"started": True})
+
+
+@router.get("/facade/config", response_model=FacadeConfigOut)
+def facade_config():
+    return FacadeConfigOut(
+        brand_name=settings.facade_brand_name,
+        telegram_url=settings.facade_telegram_url,
+        tagline=settings.facade_tagline,
+    )
+
+
+@router.post("/leads/capture", response_model=ConsumerLeadOut)
+def leads_capture(body: LeadCaptureIn, db: Session = Depends(get_db)):
+    """Public LuxFind FR lead capture from /guide façade."""
+    from app.services.demand_discovery import upsert_consumer_lead
+
+    email = (body.email or "").strip()
+    telegram = (body.telegram or "").strip().lstrip("@")
+    if not email and not telegram:
+        raise HTTPException(400, "email or telegram required")
+
+    handle = telegram or email.split("@")[0]
+    platform = "telegram" if telegram else "web"
+    brands = [body.brand_interest] if body.brand_interest else []
+    snippet = body.message or f"LuxFind capture via {body.source}"
+    contact_method = f"telegram:@{telegram}" if telegram else (f"email:{email}" if email else None)
+
+    row, _ = upsert_consumer_lead(
+        db,
+        platform=platform,
+        handle=handle[:255],
+        display_name=handle,
+        profile_url=f"https://t.me/{telegram}" if telegram else None,
+        language="fr",
+        country_hint="FR",
+        brands_interest=brands,
+        buyer_score=70.0,
+        lead_role="buyer",
+        source_type="facade_capture",
+        source_url="/guide",
+        snippet=snippet[:2000],
+        meta={"email": email or None, "source": body.source, "captured": True},
+    )
+    if not row:
+        raise HTTPException(500, "failed to save lead")
+    # Mark engaged immediately (they opted in)
+    row.contact_status = "engaged"
+    row.contact_method = contact_method
+    db.commit()
+    db.refresh(row)
+    return row
