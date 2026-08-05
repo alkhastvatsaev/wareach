@@ -6,9 +6,10 @@ import { luxApi } from "@/lib/api";
 type Props = {
   brandInterest?: string;
   telegramUrl?: string;
+  source?: string;
 };
 
-export function CaptureForm({ brandInterest, telegramUrl }: Props) {
+export function CaptureForm({ brandInterest, telegramUrl, source = "facade" }: Props) {
   const [email, setEmail] = useState("");
   const [telegram, setTelegram] = useState("");
   const [message, setMessage] = useState("");
@@ -24,7 +25,7 @@ export function CaptureForm({ brandInterest, telegramUrl }: Props) {
         email: email || undefined,
         telegram: telegram || undefined,
         brand_interest: brandInterest,
-        source: "facade",
+        source,
         message: message || undefined,
       });
       setStatus("ok");
