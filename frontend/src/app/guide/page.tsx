@@ -39,6 +39,7 @@ function CardGrid({
 }
 
 export default function GuidePage() {
+  const buy = pagesByIntent("buy");
   const howto = pagesByIntent("howto");
   const brands = pagesByIntent("brand");
   const models = pagesByIntent("model");
@@ -76,8 +77,23 @@ export default function GuidePage() {
         </div>
 
         <section className="mt-16">
+          <h2 className="font-display text-2xl font-semibold">Acheter / trouver</h2>
+          <p className="mt-2 text-sm text-white/50">
+            Requêtes type « acheter [marque] réplique », Yupoo, où acheter en France.
+          </p>
+          <CardGrid
+            items={buy.map((p) => ({
+              slug: p.slug,
+              title: p.h1,
+              blurb: p.description,
+              label: "Achat",
+            }))}
+          />
+        </section>
+
+        <section className="mt-16">
           <h2 className="font-display text-2xl font-semibold">Guides pratiques</h2>
-          <p className="mt-2 text-sm text-white/50">Intentions fortes — là où les gens cherchent.</p>
+          <p className="mt-2 text-sm text-white/50">Intentions fortes — parcours et QC.</p>
           <CardGrid
             items={howto.map((p) => ({
               slug: p.slug,

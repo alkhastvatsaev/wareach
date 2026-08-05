@@ -16,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${SITE}/guide/${p.slug}`,
       lastModified: now,
       changeFrequency: "weekly" as const,
-      priority: p.intent === "howto" ? 0.9 : 0.7,
+      priority: p.intent === "buy" ? 0.95 : p.intent === "howto" ? 0.9 : 0.7,
     })),
   ];
 }

@@ -1,4 +1,4 @@
-/** LuxFind FR — all SEO guide pages (intent + brand + model). Soft tone only. */
+/** LuxFind FR — all SEO guide pages (intent + brand + model + buy). */
 
 export type PageSection = { h2: string; body: string };
 
@@ -7,7 +7,7 @@ export type LuxfindPage = {
   title: string;
   h1: string;
   description: string;
-  intent: "howto" | "brand" | "model";
+  intent: "howto" | "brand" | "model" | "buy";
   intro: string;
   sections: PageSection[];
   brands?: string[];
@@ -999,6 +999,524 @@ export const LUXFIND_PAGES: LuxfindPage[] = [
       },
     ],
     related: ["gucci", "sac-bandeouliere", "photos-qc-lire"],
+  },
+
+  // ── Batch 4: Intention d'achat (lexical réplique / marques) ───────
+  {
+    slug: "acheter-louis-vuitton-replique",
+    title: "Acheter Louis Vuitton réplique — guide France",
+    h1: "Acheter une réplique Louis Vuitton en France",
+    description:
+      "Acheter Louis Vuitton réplique : Yupoo, WhatsApp vendeur, agent, QC et livraison France. Guide LuxFind FR.",
+    intent: "buy",
+    brands: ["louis_vuitton"],
+    intro:
+      "Vous cherchez où acheter une réplique Louis Vuitton depuis la France. Ce guide explique le parcours réel : catalogue Yupoo, contact vendeur ou agent, contrôle QC, puis livraison.",
+    sections: [
+      {
+        h2: "Où les acheteurs FR passent commande",
+        body: "Personne n’achète « sur » Yupoo comme sur une boutique. On choisit le modèle (Neverfull, Speedy, etc.), puis on commande via un agent (CNFans, Sugargoo, Kakobuy) ou en direct WhatsApp vendeur Chine. Le mot-clé acheter Louis Vuitton réplique mène surtout à ces deux chemins.",
+      },
+      {
+        h2: "QC avant de valider",
+        body: "Demandez des photos QC : monogram, coutures, hardware, embossing. Comparez plusieurs lots. Sans QC, vous achetez à l’aveugle — même si le prix est « pas cher ».",
+      },
+      {
+        h2: "Livraison France",
+        body: "Estimez le shipping avant le paiement final. Lignes tax-free / EU et last-mile Colissimo sont souvent discutées. Pour un contact discret et un parcours guidé, utilisez Telegram ou le formulaire ci-dessous.",
+      },
+    ],
+    related: ["louis-vuitton", "comment-commander-yupoo", "sac-louis-vuitton-pas-cher"],
+  },
+  {
+    slug: "acheter-hermes-replique",
+    title: "Acheter Hermès réplique — Birkin Kelly France",
+    h1: "Acheter une réplique Hermès (Birkin, Kelly)",
+    description:
+      "Acheter Hermès réplique en France : vendeur Yupoo, QC cuir/ferroir, agent ou WhatsApp. Guide discret.",
+    intent: "buy",
+    brands: ["hermes"],
+    intro:
+      "Acheter une réplique Hermès demande plus de rigueur QC que la moyenne : cuir, ferroir, couture. Voici le parcours utiliséé en France.",
+    sections: [
+      {
+        h2: "Trouver un vendeur crédible",
+        body: "Catalogue Yupoo + historique community. Méfiez-vous des offres Birkin « trop belles » sans photos atelier. Le contact WhatsApp doit rester cohérent avec le Yupoo.",
+      },
+      {
+        h2: "QC Hermès",
+        body: "Lumière naturelle, détails ferroir, poignées, grain. Une vidéo 360° aide. RL si défaut structurel.",
+      },
+      {
+        h2: "Commander depuis la France",
+        body: "Agent pour sécuriser le paiement, ou direct WA si vous assumez le risque. Contactez LuxFind pour un cadrage discret.",
+      },
+    ],
+    related: ["hermes", "copie-hermes-birkin", "qc-checklist"],
+  },
+  {
+    slug: "acheter-chanel-replique",
+    title: "Acheter Chanel réplique — Classic Flap France",
+    h1: "Acheter une réplique Chanel en France",
+    description:
+      "Acheter Chanel réplique : Classic Flap, matelassé, QC, Yupoo et livraison France.",
+    intent: "buy",
+    brands: ["chanel"],
+    intro:
+      "Pour acheter une réplique Chanel, le marché FR regarde surtout Classic Flap et 22. Le QC du matelassé et du hardware décide.",
+    sections: [
+      {
+        h2: "Parcours d’achat",
+        body: "W2C Yupoo / Weidian → agent ou WhatsApp → QC → shipping France. Évitez les sites « boutique réplique » opaques sans QC.",
+      },
+      {
+        h2: "Points QC Chanel",
+        body: "Alignement losanges, poids chaîne, logo CC, stickers. Demandez des zooms nets.",
+      },
+      {
+        h2: "Aide",
+        body: "Guides pratiques LuxFind + contact Telegram si vous voulez valider un vendeur avant de payer.",
+      },
+    ],
+    related: ["chanel", "classic-flap", "yupoo-chanel"],
+  },
+  {
+    slug: "acheter-dior-replique",
+    title: "Acheter Dior réplique — Book Tote France",
+    h1: "Acheter une réplique Dior en France",
+    description:
+      "Acheter Dior réplique : Book Tote, Saddle, broderie QC, agent et livraison FR.",
+    intent: "buy",
+    brands: ["dior"],
+    intro:
+      "Acheter une réplique Dior (Book Tote en tête) : la broderie se juge au zoom. Voici comment les acheteurs FR procèdent.",
+    sections: [
+      {
+        h2: "Où commander",
+        body: "Yupoo pour le lookbook, puis agent ou vendeur WhatsApp. Le mot acheter Dior réplique correspond à ce flux, pas à une marketplace classique.",
+      },
+      {
+        h2: "QC Book Tote et autres",
+        body: "Densité broderie, logo, lining. Saddle et Lady Dior : forme et hardware.",
+      },
+      {
+        h2: "France",
+        body: "Anticipez douane / shipping. Contact LuxFind pour le parcours pas à pas.",
+      },
+    ],
+    related: ["dior", "book-tote", "agent-france"],
+  },
+  {
+    slug: "acheter-gucci-replique",
+    title: "Acheter Gucci réplique — Marmont France",
+    h1: "Acheter une réplique Gucci en France",
+    description:
+      "Acheter Gucci réplique : GG Marmont, Dionysus, QC cuir et Double G. Guide France.",
+    intent: "buy",
+    brands: ["gucci"],
+    intro:
+      "Pour acheter une réplique Gucci, Marmont et Dionysus dominent les recherches. Symétrie monogram et cuir sont les filtres QC.",
+    sections: [
+      {
+        h2: "Acheter sans se faire avoir",
+        body: "Croisez Yupoo + retours community. Prix irréaliste + pas de QC = stop. Agent recommandé en première commande.",
+      },
+      {
+        h2: "QC Gucci",
+        body: "Double G, matelassé, teinte cuir, chaînes. Plusieurs angles obligatoires.",
+      },
+      {
+        h2: "Contact",
+        body: "Telegram ou formulaire pour être guidé avant paiement.",
+      },
+    ],
+    related: ["gucci", "marmont", "eviter-arnaques-vendeurs"],
+  },
+  {
+    slug: "acheter-cartier-replique",
+    title: "Acheter Cartier réplique — Love bracelet France",
+    h1: "Acheter une réplique Cartier en France",
+    description:
+      "Acheter Cartier réplique : Love, Juste un Clou, QC poids et gravures. Guide FR.",
+    intent: "buy",
+    brands: ["cartier"],
+    intro:
+      "Acheter une réplique Cartier (Love, Clou, Trinity) : le métal et les gravures se contrôlent en macro. Prudence maximale.",
+    sections: [
+      {
+        h2: "Parcours",
+        body: "Vendeur joaillerie Yupoo / WA, ou agent. Évitez les catalogues sneakers + bijoux mélangés sans preuves.",
+      },
+      {
+        h2: "QC bijou",
+        body: "Poids, gravure intérieure, finition vis. Vidéo 360° fortement conseillée.",
+      },
+      {
+        h2: "Paiement",
+        body: "Preuves écrites, montants raisonnables. Contact LuxFind si besoin d’un second regard.",
+      },
+    ],
+    related: ["cartier", "love-bracelet", "paiement-securise"],
+  },
+  {
+    slug: "acheter-rolex-replique",
+    title: "Acheter Rolex réplique — guide France",
+    h1: "Acheter une réplique Rolex en France",
+    description:
+      "Acheter Rolex réplique : QC poids, lunette, bracelet — parcours agent / vendeur FR.",
+    intent: "buy",
+    brands: ["rolex"],
+    intro:
+      "Les recherches « acheter Rolex réplique » sont fréquentes ; le risque d’arnaque aussi. QC strict et vendeur spécialisé uniquement.",
+    sections: [
+      {
+        h2: "Réalité du marché",
+        body: "Pas de site magique. Yupoo / WA + QC macro. Beaucoup d’offres scam : refusez l’urgence et la crypto seule.",
+      },
+      {
+        h2: "QC montre",
+        body: "Lunette, fond, fermoir, poids, finition bracelet. Comparez à des QC community récents.",
+      },
+      {
+        h2: "France",
+        body: "Agent + tracking. Contact discret via Telegram LuxFind.",
+      },
+    ],
+    related: ["rolex", "eviter-arnaques-vendeurs", "agent-france"],
+  },
+  {
+    slug: "acheter-saint-laurent-replique",
+    title: "Acheter Saint Laurent réplique — YSL France",
+    h1: "Acheter une réplique Saint Laurent (YSL)",
+    description:
+      "Acheter Saint Laurent réplique : Lou, Sac de Jour, QC embossing YSL. Guide France.",
+    intent: "buy",
+    brands: ["saint_laurent"],
+    intro:
+      "Acheter une réplique Saint Laurent : focus logo YSL, cuir et structure. Parcours Yupoo → QC → France.",
+    sections: [
+      {
+        h2: "Comment acheter",
+        body: "Trouvez le W2C, commandez via agent ou WhatsApp, validez le QC (embossing, coins, hardware).",
+      },
+      {
+        h2: "Tailles",
+        body: "Confirmez les cm : Mini / Small se ressemblent sur photo.",
+      },
+      {
+        h2: "Aide LuxFind",
+        body: "Contactez-nous pour cadrer vendeur et shipping FR.",
+      },
+    ],
+    related: ["saint-laurent", "tailles-sacs-luxe", "comment-commander-yupoo"],
+  },
+  {
+    slug: "acheter-bottega-replique",
+    title: "Acheter Bottega réplique — Intrecciato France",
+    h1: "Acheter une réplique Bottega Veneta",
+    description:
+      "Acheter Bottega réplique : Jodie, Cassette, QC tressage Intrecciato. Guide FR.",
+    intent: "buy",
+    brands: ["bottega_veneta"],
+    intro:
+      "Pour acheter une réplique Bottega, le tressage Intrecciato est le juge de paix. Sans zoom QC, ne validez pas.",
+    sections: [
+      {
+        h2: "Achat",
+        body: "Yupoo lookbook → agent / WA → QC tressage → shipping France.",
+      },
+      {
+        h2: "QC",
+        body: "Régularité, tension, teinte. Jodie : nœud. Cassette : matelassé et chaîne.",
+      },
+      {
+        h2: "Contact",
+        body: "Formulaire ou Telegram pour un avis avant GL.",
+      },
+    ],
+    related: ["bottega-veneta", "photos-qc-lire", "qc-checklist"],
+  },
+  {
+    slug: "acheter-fendi-replique",
+    title: "Acheter Fendi réplique — Baguette France",
+    h1: "Acheter une réplique Fendi en France",
+    description:
+      "Acheter Fendi réplique : Baguette, Peekaboo, QC motif FF. Guide LuxFind.",
+    intent: "buy",
+    brands: ["fendi"],
+    intro:
+      "Acheter une réplique Fendi : Baguette et Peekaboo mènent les recherches. Alignement FF et hardware au QC.",
+    sections: [
+      {
+        h2: "Parcours",
+        body: "Comme pour les autres maisons : Yupoo, vendeur crédible, QC daté, agent pour la France.",
+      },
+      {
+        h2: "QC Fendi",
+        body: "Motif FF, coutures, gravures, intérieur. Rejetez les photos floues.",
+      },
+      {
+        h2: "Suite",
+        body: "Contact LuxFind + guides pratiques livraison / douane.",
+      },
+    ],
+    related: ["fendi", "w2c-guide", "douane-france"],
+  },
+  {
+    slug: "acheter-celine-replique",
+    title: "Acheter Celine réplique — Triomphe France",
+    h1: "Acheter une réplique Celine en France",
+    description:
+      "Acheter Celine réplique : Triomphe, Luggage, QC logo et cuir. Guide France.",
+    intent: "buy",
+    brands: ["celine"],
+    intro:
+      "Acheter une réplique Celine : sobriété du logo Triomphe et qualité cuir. Parcours FR standard Yupoo / agent.",
+    sections: [
+      {
+        h2: "Où acheter",
+        body: "Catalogues Yupoo + agent. Évitez les boutiques anonymes sans QC.",
+      },
+      {
+        h2: "QC",
+        body: "Métal Triomphe, teinte, coins, fermetures. Confirmez taille Mini vs Small.",
+      },
+      {
+        h2: "Contact",
+        body: "Telegram LuxFind pour valider le prochain pas.",
+      },
+    ],
+    related: ["celine", "tailles-sacs-luxe", "premiere-commande"],
+  },
+  {
+    slug: "acheter-van-cleef-replique",
+    title: "Acheter Van Cleef réplique — Alhambra France",
+    h1: "Acheter une réplique Van Cleef (Alhambra)",
+    description:
+      "Acheter Van Cleef réplique : Alhambra, QC motif et fermoir. Guide France.",
+    intent: "buy",
+    brands: ["van_cleef_arpels"],
+    intro:
+      "Acheter une réplique Van Cleef & Arpels (Alhambra) : QC bijou minutieux, vendeur spécialisé.",
+    sections: [
+      {
+        h2: "Achat prudent",
+        body: "WA / Yupoo joaillerie, preuves écrites, pas d’urgence. Agent si première fois.",
+      },
+      {
+        h2: "QC Alhambra",
+        body: "Symétrie motif, chaîne, fermoir, finition contours. Macro obligatoire.",
+      },
+      {
+        h2: "Aide",
+        body: "Contactez LuxFind avant de payer un vendeur inconnu.",
+      },
+    ],
+    related: ["van-cleef", "cartier", "eviter-arnaques-vendeurs"],
+  },
+  {
+    slug: "ou-acheter-replique-france",
+    title: "Où acheter réplique France — Yupoo agent WhatsApp",
+    h1: "Où acheter une réplique en France ?",
+    description:
+      "Où acheter réplique France : pas de marketplace miracle — Yupoo, agent, WhatsApp vendeur Chine. Guide clair.",
+    intent: "buy",
+    intro:
+      "La question « où acheter réplique France » a une réponse nette : pas sur Amazon. Les acheteurs passent par Yupoo + agent ou WhatsApp vendeur, puis shipping vers la France.",
+    sections: [
+      {
+        h2: "Les 2 canaux réels",
+        body: "1) Agent (CNFans, Sugargoo, Kakobuy…) avec lien Yupoo/Weidian. 2) Contact direct WhatsApp du vendeur. Les « meilleurs sites réplique » qui vendent en euro carte sans QC sont souvent des arnaques.",
+      },
+      {
+        h2: "Ce que LuxFind fait",
+        body: "On explique le parcours, les red flags, le QC et la livraison FR. Contact Telegram / email pour être accompagné.",
+      },
+      {
+        h2: "Marques",
+        body: "LV, Hermès, Chanel, Dior, Gucci… voir les pages « acheter [marque] réplique ».",
+      },
+    ],
+    related: ["meilleur-site-replique-france", "acheter-louis-vuitton-replique", "agent-france"],
+  },
+  {
+    slug: "meilleur-site-replique-france",
+    title: "Meilleur site réplique France — ce qu’il faut savoir",
+    h1: "Meilleur site réplique France : la vraie réponse",
+    description:
+      "Meilleur site réplique France : Yupoo n’est pas une boutique. Agents, vendeurs WA, QC — guide LuxFind.",
+    intent: "buy",
+    intro:
+      "Chercher le « meilleur site réplique France » mène souvent à des landing pages douteuses. Le setup fiable reste catalogue + agent/vendeur + QC.",
+    sections: [
+      {
+        h2: "Pourquoi les « shops » échouent",
+        body: "Promesses 1:1, paiement immédiat, zéro QC public. À fuir. Préférez un flux transparent avec photos entrepôt.",
+      },
+      {
+        h2: "Stack recommandé",
+        body: "Yupoo (vitrine) + agent actuel + ligne shipping France. LuxFind centralise les guides pour ne pas naviguer à l’aveugle.",
+      },
+      {
+        h2: "Passer à l’action",
+        body: "Choisissez une marque, lisez le guide QC, contactez-nous si vous voulez un cadrage.",
+      },
+    ],
+    related: ["ou-acheter-replique-france", "comment-commander-yupoo", "premiere-commande"],
+  },
+  {
+    slug: "sac-louis-vuitton-pas-cher",
+    title: "Sac Louis Vuitton pas cher — réplique guide FR",
+    h1: "Sac Louis Vuitton pas cher : ce que ça veut dire vraiment",
+    description:
+      "Sac Louis Vuitton pas cher / réplique : prix réalistes, QC Neverfull Speedy, éviter les arnaques. France.",
+    intent: "buy",
+    brands: ["louis_vuitton"],
+    intro:
+      "« Sac Louis Vuitton pas cher » est l’une des requêtes les plus tapées. Traduction acheteur : réplique / alternative Yupoo avec QC, pas une promo boutique officielle.",
+    sections: [
+      {
+        h2: "Prix vs qualité",
+        body: "Un prix cassé sans QC = risque. Comparez batch, photos et retours. Neverfull et Speedy sont les entrées les plus fréquentes.",
+      },
+      {
+        h2: "Comment procéder",
+        body: "W2C → agent ou WA → QC monogram → shipping. Voir aussi acheter Louis Vuitton réplique.",
+      },
+      {
+        h2: "Contact",
+        body: "Telegram LuxFind pour cadrer un premier achat sans précipitation.",
+      },
+    ],
+    related: ["acheter-louis-vuitton-replique", "neverfull", "speedy"],
+  },
+  {
+    slug: "replique-sac-luxe-qualite",
+    title: "Réplique sac luxe qualité — QC et vendeurs",
+    h1: "Réplique sac luxe : viser la qualité (QC)",
+    description:
+      "Réplique sac luxe qualité : checklist QC, vendeurs Yupoo, agent France. Guide LuxFind.",
+    intent: "buy",
+    intro:
+      "« Réplique sac luxe qualité » / 1:1 / mirror : le ranking se joue au QC, pas au slogan vendeur.",
+    sections: [
+      {
+        h2: "Qualité = preuves",
+        body: "Photos macro, comparaison community, cohérence Yupoo/WA. Sans ça, « haute qualité » ne veut rien dire.",
+      },
+      {
+        h2: "Parcours FR",
+        body: "Agent + estimation shipping. Split de haul si besoin. Voir checklist QC.",
+      },
+      {
+        h2: "Marques",
+        body: "Pages acheter [marque] réplique pour LV, Chanel, Hermès, etc.",
+      },
+    ],
+    related: ["qc-checklist", "ou-acheter-replique-france", "photos-qc-lire"],
+  },
+  {
+    slug: "yupoo-louis-vuitton",
+    title: "Yupoo Louis Vuitton — catalogues et commande FR",
+    h1: "Yupoo Louis Vuitton : lire le catalogue et commander",
+    description:
+      "Yupoo Louis Vuitton : albums vendeurs, WhatsApp, agent, QC. Comment acheter depuis la France.",
+    intent: "buy",
+    brands: ["louis_vuitton"],
+    intro:
+      "Yupoo Louis Vuitton = vitrines photo de vendeurs. Pour acheter, il faut sortir de Yupoo (agent ou WhatsApp).",
+    sections: [
+      {
+        h2: "Naviguer Yupoo",
+        body: "Albums par modèle, onglet Contact, photos détail. Notez l’URL album exacte pour le W2C.",
+      },
+      {
+        h2: "Passer commande",
+        body: "Collez le lien dans l’agent ou écrivez au WA avec taille/couleur. QC avant shipping France.",
+      },
+      {
+        h2: "LuxFind",
+        body: "Guides + contact si vous voulez valider un vendeur LV.",
+      },
+    ],
+    related: ["acheter-louis-vuitton-replique", "comment-commander-yupoo", "louis-vuitton"],
+  },
+  {
+    slug: "yupoo-chanel",
+    title: "Yupoo Chanel — catalogues Classic Flap FR",
+    h1: "Yupoo Chanel : catalogues et achat France",
+    description:
+      "Yupoo Chanel : trouver Classic Flap, contacter vendeur, QC matelassé, livraison FR.",
+    intent: "buy",
+    brands: ["chanel"],
+    intro:
+      "Yupoo Chanel regroupe les lookbooks vendeurs. L’achat se fait ensuite via agent ou WhatsApp.",
+    sections: [
+      {
+        h2: "Sur Yupoo",
+        body: "Repérez Classic / 22, contact WA, photos chaîne et matelassé. Gardez le lien album.",
+      },
+      {
+        h2: "QC et commande",
+        body: "Même logique que acheter Chanel réplique : zooms, agent, shipping FR.",
+      },
+      {
+        h2: "Contact",
+        body: "Telegram ou formulaire LuxFind.",
+      },
+    ],
+    related: ["acheter-chanel-replique", "chanel", "classic-flap"],
+  },
+  {
+    slug: "replica-france-livraison",
+    title: "Replica France livraison — délais et douane",
+    h1: "Replica France : livraison et délais",
+    description:
+      "Replica France livraison : Colissimo, tax-free, délais Chine→FR, bonnes pratiques douane.",
+    intent: "buy",
+    intro:
+      "Après l’achat réplique / replica, la livraison France est le sujet n°1 : délais, lignes, last-mile.",
+    sections: [
+      {
+        h2: "Délais typiques",
+        body: "QC + international + Colissimo : souvent 2–4 semaines. Pics saisonniers allongent.",
+      },
+      {
+        h2: "Lignes",
+        body: "Tax-free / tariffless vs éco. Estimez le poids avant de submit le haul.",
+      },
+      {
+        h2: "Aide",
+        body: "Guides douane + shipping LuxFind. Contact si votre colis stagne.",
+      },
+    ],
+    related: ["shipping-france-delais", "douane-france", "livraison-colissimo-chine"],
+  },
+  {
+    slug: "copie-hermes-birkin",
+    title: "Copie Hermès Birkin — QC et achat France",
+    h1: "Copie Hermès Birkin : comment les acheteurs FR procèdent",
+    description:
+      "Copie Hermès Birkin / réplique : Yupoo, QC ferroir cuir, agent WhatsApp, livraison France.",
+    intent: "buy",
+    brands: ["hermes"],
+    intro:
+      "« Copie Hermès Birkin » et « réplique Birkin » sont le même intent d’achat. Le succès dépend du QC, pas du mot utiliséé.",
+    sections: [
+      {
+        h2: "Lexical = même parcours",
+        body: "Copie, réplique, replica : Yupoo → vendeur/agent → QC → France. Voir aussi acheter Hermès réplique.",
+      },
+      {
+        h2: "QC Birkin",
+        body: "Ferroir, clous, poignées, grain. Taille 25/30/35 en cm réels.",
+      },
+      {
+        h2: "Contact LuxFind",
+        body: "Pour un cadrage avant paiement sur une Birkin.",
+      },
+    ],
+    related: ["acheter-hermes-replique", "birkin", "hermes"],
   },
 ];
 

@@ -71,7 +71,13 @@ export default async function GuideSlugPage({ params }: Props) {
           ← LuxFind FR
         </Link>
         <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
-          {g.intent === "howto" ? "Guide pratique" : g.intent === "brand" ? "Maison" : "Modèle"}
+          {g.intent === "howto"
+            ? "Guide pratique"
+            : g.intent === "brand"
+              ? "Maison"
+              : g.intent === "buy"
+                ? "Achat"
+                : "Modèle"}
         </p>
         <h1 className="font-display mt-2 text-4xl font-bold tracking-tight md:text-5xl">{g.h1}</h1>
         <p className="mt-4 text-base leading-relaxed text-white/65">{g.intro}</p>
