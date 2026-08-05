@@ -12,8 +12,16 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.session import get_db
-from app.models.entities import Contact, DiscoveredUrl, JobRun, SearchQuery, Supplier, SystemMetric
-from app.schemas.api import ContactOut, HealthOut, JobTriggerOut, StatsOut, SupplierOut
+from app.models.entities import ConsumerLead, Contact, DiscoveredUrl, JobRun, SearchQuery, Supplier, SystemMetric
+from app.schemas.api import (
+    ConsumerLeadOut,
+    ContactOut,
+    DemandStatsOut,
+    HealthOut,
+    JobTriggerOut,
+    StatsOut,
+    SupplierOut,
+)
 from app.services.agent_reach import discovery_backends_ready, run_doctor, summarize_doctor
 from app.services.pipeline import run_crawl_batch, run_discovery_batch, stats_overview
 
@@ -696,3 +704,108 @@ def doctor_cached(db: Session = Depends(get_db), refresh: bool = False):
         row.updated_at = utcnow()
     db.commit()
     return {"cached": False, "data": data}
+
+
+# ─── Phase 2: French consumer discovery (free scrapers, no Firecrawl) ───
+
+
+@router.get("/demand/stats", response_model=DemandStatsOut)
+def get_demand_stats(db: Session = Depends(get_db)):
+    from app.services.demand_discovery import demand_stats
+
+    return demand_stats(db)
+
+
+@router.get("/consumers", response_model=list[ConsumerLeadOut])
+def list_consumers(
+    db: Session = Depends(get_db),
+    platform: str | None = None,
+    country: str | None = None,
+    lead_role: str | None = None,
+    min_score: float = 0,
+    limit: int = Query(50, le=500),
+    offset: int = 0,
+):
+    stmt = select(ConsumerLead).order_by(ConsumerLead.buyer_score.desc(), ConsumerLead.last_seen_at.desc())
+    if platform:
+        stmt = stmt.where(ConsumerLead.platform == platform)
+    if country:
+        stmt = stmt.where(ConsumerLead.country_hint == country.upper())
+    if lead_role:
+        stmt = stmt.where(ConsumerLead.lead_role == lead_role)
+    if min_score > 0:
+        stmt = stmt.where(ConsumerLead.buyer_score >= min_score)
+    rows = list(db.scalars(stmt.offset(offset).limit(limit)))
+    return rows
+
+
+@router.post("/demand/tick", response_model=JobTriggerOut)
+def demand_tick(
+    background_tasks: BackgroundTasks,
+    supplier_limit: int = 30,
+    query_limit: int = 20,
+):
+    from app.db.session import SessionLocal
+    from app.services.demand_discovery import run_demand_cycle
+
+    def _run():
+        s = SessionLocal()
+        try:
+            run_demand_cycle(s, supplier_limit=supplier_limit, query_limit=query_limit)
+        finally:
+            s.close()
+
+    background_tasks.add_task(_run)
+    return JobTriggerOut(
+        ok=True,
+        job="demand_tick",
+        result={"started": True, "supplier_limit": supplier_limit, "query_limit": query_limit},
+    )
+
+
+@router.post("/demand/reverse-lookup", response_model=JobTriggerOut)
+def demand_reverse_lookup(
+    background_tasks: BackgroundTasks,
+    limit: int = 40,
+):
+    from app.db.session import SessionLocal
+    from app.services.demand_discovery import reverse_lookup_suppliers
+
+    def _run():
+        s = SessionLocal()
+        try:
+            reverse_lookup_suppliers(s, limit=limit)
+        finally:
+            s.close()
+
+    background_tasks.add_task(_run)
+    return JobTriggerOut(ok=True, job="reverse_lookup", result={"started": True, "limit": limit})
+
+
+@router.get("/demand/autopilot")
+def demand_autopilot_status():
+    from app.services.demand_autopilot import status_snapshot
+
+    return status_snapshot()
+
+
+@router.post("/demand/autopilot")
+def demand_autopilot_set(enabled: bool = True):
+    from app.services.demand_autopilot import _get_row, get_config, start_demand_autopilot_thread
+    from app.services.pipeline import utcnow
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        row = _get_row(db)
+        val = dict(row.value or {})
+        val["enabled"] = bool(enabled)
+        val["updated_at"] = utcnow().isoformat()
+        row.value = val
+        row.updated_at = utcnow()
+        db.commit()
+    finally:
+        db.close()
+    if enabled:
+        start_demand_autopilot_thread()
+    return get_config() | {"enabled": enabled}

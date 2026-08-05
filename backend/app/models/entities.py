@@ -154,3 +154,38 @@ class SystemMetric(Base):
     key: Mapped[str] = mapped_column(String(128), unique=True)
     value: Mapped[dict] = mapped_column(JSON, default=dict)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ConsumerLead(Base):
+    """Phase 2 — French / EU replica buyers & curators discovered via OSINT."""
+
+    __tablename__ = "consumer_leads"
+    __table_args__ = (
+        UniqueConstraint("platform", "handle", name="uq_consumer_platform_handle"),
+        Index("ix_consumer_buyer_score", "buyer_score"),
+        Index("ix_consumer_status", "contact_status"),
+        Index("ix_consumer_country", "country_hint"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    handle: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255))
+    profile_url: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(16), default="unknown", index=True)
+    country_hint: Mapped[str | None] = mapped_column(String(8), index=True)
+    brands_interest: Mapped[list] = mapped_column(JSON, default=list)
+    buyer_score: Mapped[float] = mapped_column(Float, default=0.0, index=True)
+    lead_role: Mapped[str] = mapped_column(String(32), default="unknown", index=True)
+    # found | queued | contacted | engaged | opted_out
+    contact_status: Mapped[str] = mapped_column(String(32), default="found", index=True)
+    contact_method: Mapped[str | None] = mapped_column(String(64))
+    source_type: Mapped[str] = mapped_column(String(64), default="unknown", index=True)
+    source_url: Mapped[str | None] = mapped_column(Text)
+    supplier_id: Mapped[int | None] = mapped_column(ForeignKey("suppliers.id"), index=True)
+    supplier_ref: Mapped[str | None] = mapped_column(Text)
+    snippet: Mapped[str | None] = mapped_column(Text)
+    meta: Mapped[dict] = mapped_column(JSON, default=dict)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    seen_count: Mapped[int] = mapped_column(Integer, default=1)

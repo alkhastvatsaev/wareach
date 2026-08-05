@@ -1,5 +1,6 @@
 from app.models.entities import (
     Contact,
+    ConsumerLead,
     DiscoveredUrl,
     Evidence,
     JobRun,
@@ -10,6 +11,7 @@ from app.models.entities import (
 
 __all__ = [
     "Contact",
+    "ConsumerLead",
     "DiscoveredUrl",
     "Evidence",
     "JobRun",

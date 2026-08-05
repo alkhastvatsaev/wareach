@@ -92,3 +92,36 @@ class HealthOut(BaseModel):
     backends: dict[str, bool]
     database: bool
     redis: bool
+
+
+class ConsumerLeadOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    platform: str
+    handle: str
+    display_name: str | None
+    profile_url: str | None
+    language: str
+    country_hint: str | None
+    brands_interest: list[Any] = Field(default_factory=list)
+    buyer_score: float
+    lead_role: str
+    contact_status: str
+    contact_method: str | None
+    source_type: str
+    source_url: str | None
+    supplier_id: int | None
+    supplier_ref: str | None
+    snippet: str | None
+    first_seen_at: datetime
+    last_seen_at: datetime
+    seen_count: int
+
+
+class DemandStatsOut(BaseModel):
+    consumer_leads: int
+    fr_leads: int
+    qualified_buyers: int
+    by_platform: dict[str, int] = Field(default_factory=dict)
+    contact_found: int = 0

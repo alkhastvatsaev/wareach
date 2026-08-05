@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from app.api.routes import router
 from app.core.config import get_settings
+from app.seeds.seed_demand_fr import fr_consumer_queries
 from app.data.seed_queries import all_queries
 from app.data.seed_whatsapp_blitz import blitz_queries
 from app.data.seed_b2b import b2b_queries
@@ -14,7 +15,7 @@ from app.data.seed_social import social_queries
 from app.data.seed_yield import yield_queries
 from app.db.migrate import ensure_schema, reclaim_stale_url_jobs
 from app.db.session import Base, SessionLocal, engine
-from app.models import Contact, DiscoveredUrl, Evidence, JobRun, SearchQuery, Supplier, SystemMetric  # noqa: F401
+from app.models import Contact, ConsumerLead, DiscoveredUrl, Evidence, JobRun, SearchQuery, Supplier, SystemMetric  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("wareach")
@@ -33,6 +34,7 @@ def upsert_search_queries() -> int:
             + list(b2b_queries())
             + list(social_queries())
             + list(yield_queries())
+            + list(fr_consumer_queries())
         ):
             if item["query"] in existing:
                 continue
@@ -67,17 +69,21 @@ async def lifespan(_: FastAPI):
         logger.info("Startup reclaimed %s stuck URL jobs", n)
     upsert_search_queries()
     from app.services.autopilot import start_autopilot_thread
+    from app.services.demand_autopilot import start_demand_autopilot_thread
 
     start_autopilot_thread()
+    start_demand_autopilot_thread()
     logger.info(
-        "%s v2 ready — autopilot ON — LVMH/Richemont OSINT — brands=%s",
+        "%s v2 ready — supply autopilot + demand autopilot ON — brands=%s",
         settings.app_name,
         settings.brand_list,
     )
     yield
     from app.services.autopilot import stop_autopilot_thread
+    from app.services.demand_autopilot import stop_demand_autopilot_thread
 
     stop_autopilot_thread()
+    stop_demand_autopilot_thread()
 
 
 app = FastAPI(

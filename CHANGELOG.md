@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — 2026-08-05
+
+- Phase 2 **DemandReach**: `ConsumerLead` model + reverse lookup from suppliers
+- Free scrapers: Reddit (PullPush API), SearXNG, DuckDuckGo, Brave, Bing, Jina Reader
+- `demand_autopilot` thread + API `/demand/*`, `/consumers`
+- 78 FR consumer discovery seeds (no Firecrawl)
+
 ## 0.1.2 — 2026-08-04
 
 - Boost mode: restore peak-hour WA path (blitz 40×8, Yupoo raw 120×8, sleep 12s)
