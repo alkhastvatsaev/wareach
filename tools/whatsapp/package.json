@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node check_batch.js",
     "check": "node check_batch.js",
-    "login": "node check_batch.js --login-only"
+    "login": "node check_batch.js --login-only",
+    "rfq": "node send-rfq.js"
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",

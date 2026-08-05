@@ -56,9 +56,19 @@ class Settings(BaseSettings):
     facade_tagline: str = "Guide discret pour acheteurs exigeants"
     telegram_bot_token: str = ""
 
+    # LuxMatch marketplace
+    openai_api_key: str = ""
+    luxmatch_public_url: str = "http://localhost:3001"
+    luxmatch_upload_dir: str = str(ROOT / "data" / "luxmatch" / "uploads")
+    luxmatch_blast_limit: int = 10
+
     @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        for extra in ("http://localhost:3001", "http://127.0.0.1:3001"):
+            if extra not in origins:
+                origins.append(extra)
+        return origins
 
     @property
     def brand_list(self) -> list[str]:

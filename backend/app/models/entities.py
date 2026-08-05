@@ -189,3 +189,73 @@ class ConsumerLead(Base):
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     seen_count: Mapped[int] = mapped_column(Integer, default=1)
+
+
+# ─── LuxMatch RFQ marketplace ───────────────────────────────────────
+
+
+class RfqRequest(Base):
+    """Buyer photo request → AI description → blast to suppliers."""
+
+    __tablename__ = "rfq_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    photo_path: Mapped[str] = mapped_column(Text, nullable=False)
+    photo_url: Mapped[str | None] = mapped_column(Text)
+    ai_description: Mapped[dict] = mapped_column(JSON, default=dict)
+    user_edit: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
+    # draft | confirmed | pending_blast | blasting | blasted | selected | completed
+    contact_email: Mapped[str | None] = mapped_column(String(255))
+    contact_telegram: Mapped[str | None] = mapped_column(String(128))
+    selected_quote_id: Mapped[int | None] = mapped_column(Integer)
+    blast_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RfqOutreach(Base):
+    """One WhatsApp outreach to a supplier for an RFQ."""
+
+    __tablename__ = "rfq_outreach"
+    __table_args__ = (UniqueConstraint("supplier_token", name="uq_rfq_supplier_token"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("rfq_requests.id"), index=True, nullable=False)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"), index=True)
+    phone: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    supplier_token: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    wa_status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    # queued | sent | failed
+    wa_error: Mapped[str | None] = mapped_column(Text)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RfqQuote(Base):
+    __tablename__ = "rfq_quotes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    outreach_id: Mapped[int] = mapped_column(ForeignKey("rfq_outreach.id"), index=True, nullable=False)
+    request_id: Mapped[int] = mapped_column(ForeignKey("rfq_requests.id"), index=True, nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), default="USD")
+    description: Mapped[str | None] = mapped_column(Text)
+    shipping: Mapped[str | None] = mapped_column(Text)
+    payment_methods: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(32), default="submitted", index=True)
+    # submitted | selected | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RfqReview(Base):
+    __tablename__ = "rfq_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("rfq_requests.id"), index=True, nullable=False)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"), index=True)
+    quote_id: Mapped[int | None] = mapped_column(ForeignKey("rfq_quotes.id"), index=True)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

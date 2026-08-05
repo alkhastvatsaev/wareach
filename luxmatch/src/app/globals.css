@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #f5f0e8;
+  --muted: rgba(245, 240, 232, 0.55);
+  --accent: #c4a574;
+  --surface: rgba(12, 10, 8, 0.7);
+}
+
+body {
+  color: var(--ink);
+  background: #0a0908;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}

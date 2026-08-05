@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
 from app.api.routes import router
+from app.api.luxmatch_routes import router as luxmatch_router
 from app.core.config import get_settings
 from app.seeds.seed_demand_fr import fr_consumer_queries
 from app.data.seed_queries import all_queries
@@ -15,8 +16,20 @@ from app.data.seed_social import social_queries
 from app.data.seed_yield import yield_queries
 from app.db.migrate import ensure_schema, reclaim_stale_url_jobs
 from app.db.session import Base, SessionLocal, engine
-from app.models import Contact, ConsumerLead, DiscoveredUrl, Evidence, JobRun, SearchQuery, Supplier, SystemMetric  # noqa: F401
-
+from app.models import (  # noqa: F401
+    Contact,
+    ConsumerLead,
+    DiscoveredUrl,
+    Evidence,
+    JobRun,
+    RfqOutreach,
+    RfqQuote,
+    RfqRequest,
+    RfqReview,
+    SearchQuery,
+    Supplier,
+    SystemMetric,
+)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("wareach")
 settings = get_settings()
@@ -107,6 +120,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+app.include_router(luxmatch_router, prefix="/api")
 
 
 @app.get("/")
